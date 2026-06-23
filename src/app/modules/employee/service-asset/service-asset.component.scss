@@ -1,0 +1,12 @@
+.service-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.service-check input {
+  width: 16px;
+  height: 16px;
+}

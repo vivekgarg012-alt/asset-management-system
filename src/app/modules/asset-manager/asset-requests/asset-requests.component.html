@@ -1,0 +1,687 @@
+<div class="requests-container">
+  <!-- Page Header -->
+  <div class="page-header animate-slide-up">
+    <div class="page-title">
+      <span class="material-icons-outlined title-icon">assignment</span>
+      <div>
+        <h2>Asset Requests</h2>
+        <p class="text-muted">Review and manage asset requests requiring your approval</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-3 gap-16 mb-24 animate-slide-up">
+    <div class="mini-stat-card">
+      <div class="mini-stat-icon bg-blue">
+        <span class="material-icons-outlined">fact_check</span>
+      </div>
+      <div class="mini-stat-info">
+        <span class="mini-stat-value">{{ requestStats.approved + requestStats.completed + requestStats.rejected
+          }}</span>
+        <span class="mini-stat-label">Total Action</span>
+      </div>
+    </div>
+    <div class="mini-stat-card">
+      <div class="mini-stat-icon bg-green">
+        <span class="material-icons-outlined">check_circle</span>
+      </div>
+      <div class="mini-stat-info">
+        <span class="mini-stat-value">{{ requestStats.approved + requestStats.completed }}</span>
+        <span class="mini-stat-label">Approved</span>
+      </div>
+    </div>
+    <div class="mini-stat-card">
+      <div class="mini-stat-icon bg-red">
+        <span class="material-icons-outlined">cancel</span>
+      </div>
+      <div class="mini-stat-info">
+        <span class="mini-stat-value">{{ requestStats.rejected }}</span>
+        <span class="mini-stat-label">Rejected</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="card animate-slide-up" *ngIf="isLoading" style="padding: 0; overflow: hidden;">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <h4>Loading requests...</h4>
+      <p class="text-muted">Fetching pending requests from the server</p>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div class="card animate-slide-up" *ngIf="!isLoading && loadError" style="padding: 0; overflow: hidden;">
+    <div class="error-state">
+      <span class="material-icons-outlined error-icon">error_outline</span>
+      <h4>Failed to load requests</h4>
+      <p class="text-muted">{{ loadError }}</p>
+      <button class="btn-retry" (click)="loadAllData()">
+        <span class="material-icons-outlined">refresh</span>
+        Retry
+      </button>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading && !loadError">
+    <!-- Tabs & Filter Bar -->
+    <div class="tabs-bar animate-slide-up">
+      <div class="tabs">
+        <button class="tab-btn" [class.active]="activeTab === 'pending'" (click)="switchTab('pending')">
+          <span class="material-icons-outlined">pending_actions</span>
+          Pending Approval
+          <span class="tab-badge" *ngIf="pendingRequests.length > 0">{{ pendingRequests.length }}</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'return'" (click)="switchTab('return')">
+          <span class="material-icons-outlined">assignment_return</span>
+          Return Request
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'all'" (click)="switchTab('all')">
+          <span class="material-icons-outlined">list_alt</span>
+          All Requests
+        </button>
+        <!--
+        <button class="tab-btn" [class.active]="activeTab === 'allAssetRequests'" (click)="switchTab('allAssetRequests')">
+          <span class="material-icons-outlined">inventory_2</span>
+          All Asset Requests
+        </button>
+        -->
+        <button class="tab-btn" [class.active]="activeTab === 'confirmation'" (click)="switchTab('confirmation')">
+          <span class="material-icons-outlined">verified</span>
+          Confirmation Requests
+          <span class="tab-badge confirmation-badge" *ngIf="filteredConfirmationRequests.length > 0">{{
+            filteredConfirmationRequests.length }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card filter-bar animate-slide-up" *ngIf="activeTab !== 'confirmation'">
+      <div class="search-box">
+        <span class="material-icons-outlined search-icon">search</span>
+        <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()"
+          placeholder="Search by request number, requester, or category..." />
+      </div>
+      <div class="filter-group">
+        <select [(ngModel)]="selectedUrgency" (ngModelChange)="onFilterChange()" *ngIf="activeTab !== 'return'">
+          <option value="">All Urgencies</option>
+          <option *ngFor="let u of urgencies" [value]="u">{{ u }}</option>
+        </select>
+        <select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()"
+          *ngIf="activeTab === 'pending' || activeTab === 'all' || activeTab === 'allAssetRequests' || activeTab === 'return'">
+          <option value="">All Requests</option>
+          <option *ngFor="let s of statusFilterOptions" [value]="s">{{ s }} Requests</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Requests List (Pending / All tabs) -->
+    <div class="requests-list animate-slide-up" *ngIf="activeTab !== 'confirmation'">
+      <div class="request-card card" *ngFor="let req of paginatedRequests">
+        <div class="request-row">
+          <div class="request-main">
+            <div class="request-header">
+              <span class="request-number">{{ req.id }}</span>
+              <span class="urgency-badge" [ngClass]="getUrgencyClass(req.urgency)">{{ req.urgency | uppercase }}</span>
+              <span class="request-type-badge">{{ req.requestType }}</span>
+            </div>
+            <div class="request-info">
+              <h4>{{ req.category }}<span *ngIf="req.subCategory && req.subCategory !== 'N/A'"> — {{ req.subCategory
+                  }}</span></h4>
+              <p class="text-muted">{{ req.justification }}</p>
+            </div>
+            <div class="request-meta">
+              <span class="meta-item">
+                <span class="material-icons-outlined">person</span>
+                {{ req.requesterName }}
+              </span>
+              <span class="meta-item">
+                <span class="material-icons-outlined">business</span>
+                {{ req.requesterDepartment }} — {{ req.requesterTeam }}
+              </span>
+              <span class="meta-item">
+                <span class="material-icons-outlined">schedule</span>
+                {{ req.requestDate | date: 'dd MMM yyyy, hh:mm a' }}
+              </span>
+            </div>
+          </div>
+          <div class="request-actions">
+            <app-status-badge [status]="req.status"></app-status-badge>
+            <div class="action-buttons">
+              <button class="btn-detail" (click)="openDetailModal(req)">
+                <span class="material-icons-outlined">info</span>
+                Details
+              </button>
+              <ng-container
+                *ngIf="(activeTab === 'pending' || activeTab === 'return') && req.status === RequestStatus.PENDING && req.currentStage === 'Asset Manager Approval'">
+                <button class="btn-approve" (click)="openActionModal(req, 'approve')">
+                  <span class="material-icons-outlined">check</span>
+                  Approve
+                </button>
+                <button class="btn-reject" (click)="openActionModal(req, 'reject')">
+                  <span class="material-icons-outlined">close</span>
+                  Reject
+                </button>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state card" *ngIf="filteredRequests.length === 0">
+        <span class="material-icons-outlined empty-icon">task_alt</span>
+        <h4 *ngIf="activeTab === 'pending'">No requests found</h4>
+        <h4 *ngIf="activeTab === 'return'">No return requests found</h4>
+        <h4 *ngIf="activeTab === 'all'">No requests found</h4>
+        <h4 *ngIf="activeTab === 'allAssetRequests'">No asset requests found</h4>
+        <p class="text-muted">
+          {{ activeTab === 'pending' ? 'Try changing the status filter to view pending, approved, or rejected requests.'
+          :
+          (activeTab === 'return' ? 'There are no return requests at this time.' :
+          'Try adjusting your search or filter criteria.') }}
+        </p>
+      </div>
+
+      <!-- Pagination for Requests -->
+      <div class="pagination-controls card" *ngIf="filteredRequests.length > pageSize">
+        <div class="pagination-info">
+          Showing <strong>{{ paginationDisplayRange }}</strong>
+        </div>
+        <div class="pagination-actions">
+          <button class="btn-page" [disabled]="currentPage === 1" (click)="setPage(currentPage - 1)">
+            <span class="material-icons-outlined">chevron_left</span>
+            Previous
+          </button>
+          <span class="page-indicator">Page {{ currentPage }} of {{ totalPages }}</span>
+          <button class="btn-page" [disabled]="currentPage === totalPages" (click)="setPage(currentPage + 1)">
+            Next
+            <span class="material-icons-outlined">chevron_right</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Confirmation Requests Tab ── -->
+    <ng-container *ngIf="activeTab === 'confirmation'">
+      <!-- Confirmation Search Bar -->
+      <div class="card filter-bar animate-slide-up">
+        <div class="search-box">
+          <span class="material-icons-outlined search-icon">search</span>
+          <input type="text" [(ngModel)]="confirmationSearchTerm" (ngModelChange)="onConfirmationSearchChange()"
+            placeholder="Search confirmation requests..." />
+        </div>
+      </div>
+
+      <!-- Confirmation Requests List -->
+      <div class="confirmation-list animate-slide-up">
+        <div class="confirmation-card card" *ngFor="let req of paginatedConfirmationRequests">
+          <div class="conf-card-header">
+            <div class="conf-card-id-group">
+              <span class="material-icons-outlined conf-icon">verified</span>
+              <span class="request-number">{{ req.id }}</span>
+              <span class="urgency-badge" [ngClass]="getUrgencyClass(req.urgency)">{{ req.urgency | uppercase }}</span>
+            </div>
+            <app-status-badge [status]="req.status"></app-status-badge>
+          </div>
+
+          <div class="conf-card-body">
+            <div class="conf-asset-info">
+              <!-- Asset name pill -->
+              <div class="conf-asset-name-row">
+                <span class="material-icons-outlined conf-asset-icon">inventory_2</span>
+                <span class="conf-asset-name">{{ req.assetName || req.assignedAssetId || '—' }}</span>
+                <span class="conf-asset-type-chip">{{ req.assetType }}</span>
+              </div>
+              <h4>{{ req.category }}<span *ngIf="req.subCategory"> — {{ req.subCategory }}</span></h4>
+              <p class="text-muted" *ngIf="req.justification">{{ req.justification }}</p>
+            </div>
+
+            <div class="conf-details-grid">
+              <div class="conf-detail-item">
+                <label>Requester</label>
+                <span>
+                  <span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">person</span>
+                  {{ req.requesterName || '—' }}
+                </span>
+              </div>
+              <div class="conf-detail-item">
+                <label>Email</label>
+                <span>{{ req.requesterEmail || '—' }}</span>
+              </div>
+              <div class="conf-detail-item">
+                <label>Request ID</label>
+                <span class="mono-text">{{ req.id }}</span>
+              </div>
+              <div class="conf-detail-item">
+                <label>Asset ID</label>
+                <span class="mono-text">{{ req.assignedAssetId || '—' }}</span>
+              </div>
+              <div class="conf-detail-item">
+                <label>Request Date</label>
+                <span>{{ req.requestDate | date: 'dd MMM yyyy, hh:mm a' }}</span>
+              </div>
+              <div class="conf-detail-item">
+                <label>Urgency</label>
+                <span class="urgency-badge" [ngClass]="getUrgencyClass(req.urgency)">{{ req.urgency | uppercase
+                  }}</span>
+              </div>
+            </div>
+          </div>
+
+
+          <div class="conf-card-footer">
+            <button class="btn-detail" (click)="openDetailModal(req)">
+              <span class="material-icons-outlined">info</span>
+              View Details
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State for Confirmation Requests -->
+        <div class="empty-state card" *ngIf="filteredConfirmationRequests.length === 0">
+          <span class="material-icons-outlined empty-icon">verified</span>
+          <h4>No confirmation requests</h4>
+          <p class="text-muted">There are currently no confirmation requests awaiting your review.</p>
+        </div>
+
+        <!-- Pagination for Confirmations -->
+        <div class="pagination-controls card" *ngIf="filteredConfirmationRequests.length > pageSize">
+          <div class="pagination-info">
+            Showing <strong>{{ paginationDisplayRange }}</strong>
+          </div>
+          <div class="pagination-actions">
+            <button class="btn-page" [disabled]="currentPage === 1" (click)="setPage(currentPage - 1)">
+              <span class="material-icons-outlined">chevron_left</span>
+              Previous
+            </button>
+            <span class="page-indicator">Page {{ currentPage }} of {{ totalPages }}</span>
+            <button class="btn-page" [disabled]="currentPage === totalPages" (click)="setPage(currentPage + 1)">
+              Next
+              <span class="material-icons-outlined">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+
+
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" *ngIf="showDetailModal" (click)="closeDetailModal()">
+    <div class="modal-content modal-detail" (click)="$event.stopPropagation()">
+      <div class="modal-header modal-detail-header">
+        <h3>
+          <span class="material-icons-outlined">assignment</span>
+          Request Details
+        </h3>
+        <button class="btn-icon-close" (click)="closeDetailModal()">
+          <span class="material-icons-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body" *ngIf="detailRequest">
+        <!-- tracker Section -->
+        <div class="tracker-container mb-24"
+          style="padding: 16px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+          <!-- Overall Progress -->
+          <div class="progress-section">
+            <div class="progress-header">
+              <span class="progress-label">OVERALL COMPLETION</span>
+              <span class="progress-percentage">{{ overallProgress }}%</span>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar" [style.width.%]="overallProgress"></div>
+            </div>
+          </div>
+
+          <!-- Tracking Timeline -->
+          <div class="tracking-timeline mt-20" [class.loading]="loadingProgress" style="margin-top: 20px;">
+            <div class="timeline-step" *ngFor="let step of trackingSteps; let last = last"
+              [ngClass]="getApprovalStageClass(step.status)">
+
+              <div class="step-indicator">
+                <div class="step-icon">
+                  <span class="material-icons-outlined" [class.spinning]="step.isCurrent && step.status === 'Pending'">
+                    {{ getApprovalIcon(step.status) }}
+                  </span>
+                </div>
+                <div class="step-line" *ngIf="!last"></div>
+              </div>
+
+              <div class="step-content">
+                <div class="step-header">
+                  <div class="step-name-block">
+                    <h4 class="step-name">{{ step.name }}</h4>
+                    <span class="step-role-label">{{ step.roleName }}</span>
+                  </div>
+                  <span class="step-status">{{ step.status }}</span>
+                </div>
+
+                <div class="step-details" *ngIf="step.status !== 'Pending' || step.isCurrent">
+                  <div class="detail-row" *ngIf="step.timestamp">
+                    <span class="material-icons-outlined">calendar_today</span>
+                    <span class="detail-text">{{ step.timestamp | date:'medium' }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="material-icons-outlined">chat_bubble_outline</span>
+                    <span class="detail-text italic" *ngIf="step.comments">"{{ step.comments }}"</span>
+                    <span class="detail-text" *ngIf="!step.comments">-</span>
+                  </div>
+                  <p class="step-message mt-4" *ngIf="step.isCurrent && !step.timestamp">Awaiting action at this
+                    stage...</p>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="loadingProgress" class="text-center p-16">
+              <div class="spinner-small"
+                style="width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 2s linear infinite; margin: 0 auto;">
+              </div>
+              <p class="text-xs text-muted mt-8">Fetching real-time progress...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Request Info Grid -->
+        <div class="detail-section">
+          <h4 class="detail-section-title">
+            <span class="material-icons-outlined">person</span>
+            Requester Information
+          </h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Name</label>
+              <span>{{ detailRequest.requesterName }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Email</label>
+              <span class="email-link">{{ getRequesterEmail(detailRequest) }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Asset Type</label>
+              <span>{{ detailRequest.assetType }}<span *ngIf="detailRequest.category && detailRequest.category !== ''">
+                  — {{ detailRequest.category }}</span></span>
+            </div>
+            <div class="detail-item"
+              *ngIf="detailRequest.requestType !== 'Extend Warranty' && detailRequest.requestType !== 'Return Asset'">
+              <label>Urgency</label>
+              <span class="urgency-badge" [ngClass]="getUrgencyClass(detailRequest.urgency)">{{ detailRequest.urgency |
+                uppercase }}</span>
+            </div>
+
+            <div class="detail-item">
+              <label>Role</label>
+              <span>{{ detailRequest.requesterRoleName || detailRequest.requesterRole || '—' }}</span>
+            </div>
+            <div class="detail-item full-col"
+              *ngIf="detailRequest.requestType !== 'Extend Warranty' && detailRequest.requestType !== 'Return Asset'">
+              <label>Document</label>
+              <div *ngIf="detailRequest.document" class="doc-actions-wrapper">
+                <span class="email-doc">
+                  <span class="material-icons-outlined">attachment</span>
+                  <span [title]="detailRequest.document">{{ extractFileName(detailRequest.document) }}</span>
+                </span>
+                <div class="doc-actions">
+                  <button class="btn-small-outline doc-btn" (click)="viewDocument(detailRequest.document)">
+                    <span class="material-icons-outlined">visibility</span> View
+                  </button>
+                  <button class="btn-small-outline doc-btn" (click)="downloadDocument(detailRequest.document)">
+                    <span class="material-icons-outlined">download</span> Download
+                  </button>
+                </div>
+              </div>
+              <span *ngIf="!detailRequest.document">—</span>
+            </div>
+            <div class="detail-item full-col" *ngIf="detailRequest.requestType !== 'Return Asset'">
+              <label>Employee Reason</label>
+              <div class="reason-box">{{ detailRequest.justification }}</div>
+            </div>
+
+            <div class="detail-item full-col"
+              *ngIf="detailRequest.requestType !== 'Return Asset' && getTlRemarks(detailRequest)">
+              <label>Team Lead Remarks</label>
+              <div class="reason-box remarks-box">{{ getTlRemarks(detailRequest) }}</div>
+            </div>
+
+
+            <div class="detail-item full-col" *ngIf="detailRequest.requestType === 'Return Asset'">
+              <label>Employee Return Reason</label>
+              <div class="reason-box">{{ getReturnEmployeeReason(detailRequest) }}</div>
+            </div>
+            <div class="detail-item">
+              <label>Date</label>
+              <span>{{ detailRequest.requestDate | date: 'dd MMM yyyy, hh:mm a' }}</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Provide Asset Section -->
+        <div class="detail-section">
+          <h4 class="detail-section-title">
+            <span class="material-icons-outlined">inventory_2</span>
+            {{ detailRequest.requestType === 'Return Asset' ? 'Asset Details' : (detailRequest.status ===
+            RequestStatus.PENDING ? 'Provide Asset' : 'Allocation Details') }}
+          </h4>
+          <div class="detail-grid">
+
+            <ng-container *ngIf="detailRequest.requestType !== 'Return Asset'">
+              <!-- Show Selects only if Request is Pending and not yet processed by Asset Manager -->
+              <ng-container
+                *ngIf="detailRequest.status === RequestStatus.PENDING && detailRequest.currentStage === 'Asset Manager Approval'">
+                <div class="detail-item full-col"
+                  *ngIf="activeTab !== 'confirmation' && detailRequest.requestType !== 'Extend Warranty'">
+                  <label>Select Asset</label>
+                  <div class="asset-match-warning" *ngIf="showAvailableAssetFallbackWarning">
+                    <span class="material-icons-outlined">warning_amber</span>
+                    <span>No matching asset found for this request type/category. Showing all available assets.</span>
+                  </div>
+                  <select class="asset-select" [(ngModel)]="selectedAssetId" (ngModelChange)="onAssetSelect($event)">
+                    <option value="">-- Select Available Asset --</option>
+                    <option *ngFor="let asset of filteredAvailableAssets" [value]="asset.asset_id">
+                      {{ asset.asset_name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="detail-item full-col"
+                  *ngIf="activeTab !== 'confirmation' && detailRequest.requestType !== 'Extend Warranty'">
+                  <label>Allocation Team Member</label>
+                  <div
+                    style="display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 10px 14px; background: var(--surface-bg, #f8fafc); border: 1.5px solid var(--border-color); border-radius: 10px;">
+                    <span class="material-icons-outlined" style="font-size: 1.2rem;"
+                      [style.color]="detailRequest.status === 'Pending' ? '#3b82f6' : '#10b981'">
+                      {{ detailRequest.status === 'Pending' ? 'person' : 'verified_user' }}
+                    </span>
+                    <span style="font-weight: 600; color: var(--text-primary, #1e293b);">
+                      {{ assignedAllocationMemberName || 'Fetching...' }}
+                    </span>
+                  </div>
+                </div>
+              </ng-container>
+
+              <!-- Show Rejection Reason if Rejected -->
+              <div class="detail-item full-col" *ngIf="detailRequest.status === RequestStatus.REJECTED">
+                <label style="color: #dc3545; font-weight: 600;">Rejection Reason</label>
+                <div class="rejection-reason-display"
+                  style="padding: 12px; background: #fff5f5; border-left: 4px solid #dc3545; border-radius: 4px; margin-top: 5px;">
+                  <span class="material-icons-outlined"
+                    style="vertical-align: middle; color: #dc3545; font-size: 18px; margin-right: 8px;">cancel</span>
+                  <span style="color: #c53030; font-weight: 500;">{{ getRejectionReason(detailRequest) }}</span>
+                </div>
+              </div>
+            </ng-container>
+            <ng-container
+              *ngIf="detailRequest.requestType !== 'Return Asset' && detailRequest.requestType !== 'Extend Warranty'">
+              <div class="detail-item">
+                <label>Asset ID</label>
+                <span class="mono-text">{{ detailRequest.assignedAssetId || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Type ID</label>
+                <span>{{ detailRequest.assignedTypeId || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Sub Category ID</label>
+                <span>{{ detailRequest.assignedSubCategoryId || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Serial Number</label>
+                <span>{{ detailRequest.assignedSerial || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Purchase Date</label>
+                <span>{{ detailRequest.assignedPurchaseDate || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Warranty Expiry</label>
+                <span>{{ detailRequest.assignedWarrantyExpiry || '—' }}</span>
+              </div>
+            </ng-container>
+
+            <ng-container *ngIf="detailRequest.requestType === 'Return Asset'">
+              <div class="detail-item">
+                <label>Asset Name</label>
+                <span style="font-weight: 600; color: var(--primary);">{{ detailRequest.assetName ||
+                  detailRequest.category || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Asset ID</label>
+                <span class="mono-text">{{ detailRequest.assignedAssetId || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Serial Number</label>
+                <span class="mono-text">{{ detailRequest.assignedSerial || '—' }}</span>
+              </div>
+            </ng-container>
+
+          </div>
+        </div>
+
+        <!-- Manager Remarks Section -->
+        <div class="detail-section" *ngIf="getAssetManagerRemarks(detailRequest)">
+          <h4 class="detail-section-title" style="color: var(--primary);">
+            <span class="material-icons-outlined">reviews</span>
+            Manager Remarks
+          </h4>
+          <div class="remarks-display-box"
+            style="padding: 15px; background: #f0f7ff; border-radius: 12px; border-left: 4px solid var(--primary); margin-top: 10px;">
+            <p style="margin: 0; font-style: italic; color: #2c5282;">"{{ getAssetManagerRemarks(detailRequest) }}"</p>
+          </div>
+        </div>
+
+        <!-- Allocation Team Remarks Section -->
+        <div class="detail-section" *ngIf="getAllocationRemarks(detailRequest)">
+          <h4 class="detail-section-title" style="color: #6366f1;">
+            <span class="material-icons-outlined">feedback</span>
+            Allocation Team Remarks
+          </h4>
+          <div class="remarks-display-box"
+            style="padding: 15px; background: #f5f3ff; border-radius: 12px; border-left: 4px solid #6366f1; margin-top: 10px;">
+            <p style="margin: 0; font-style: italic; color: #4338ca;">"{{ getAllocationRemarks(detailRequest) }}"</p>
+          </div>
+        </div>
+
+        <!-- Processing Section for Asset Manager (Only for Pending or Confirmation requests at AM stage) -->
+        <div class="detail-section"
+          *ngIf="(detailRequest.status === RequestStatus.PENDING || detailRequest.status === RequestStatus.APPROVED) && detailRequest.currentStage === 'Asset Manager Approval'">
+          <h4 class="detail-section-title" style="color: var(--primary);">
+            <span class="material-icons-outlined">gavel</span>
+            Process Request
+          </h4>
+          <div class="approval-form-wrapper"
+            style="padding: 15px; background: #f8f9fa; border-radius: 12px; margin-top: 10px;">
+            <div class="form-control-group">
+              <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #444;">
+                Approver Remarks
+                <span class="required" style="color: #dc3545;">(Mandatory for rejection)</span>
+              </label>
+              <textarea class="remarks-input" [(ngModel)]="actionComments"
+                placeholder="Please provide your remarks for approval or rejection..." rows="3"
+                style="width: 100%; border-radius: 8px; border: 1.5px solid #dee2e6; padding: 12px; font-family: inherit; transition: border-color 0.2s; outline: none;"></textarea>
+              <small style="color: #6c757d; margin-top: 4px; display: block;">These remarks will be visible in the
+                approval history.</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comments -->
+        <div class="detail-section" *ngIf="detailRequest.comments && detailRequest.comments.length > 0">
+          <h4 class="detail-section-title">
+            <span class="material-icons-outlined">comment</span>
+            Comments
+          </h4>
+          <div class="comment-list">
+            <div class="comment-item" *ngFor="let c of detailRequest.comments">
+              <div class="comment-avatar">{{ c.userName.charAt(0) }}</div>
+              <div class="comment-body">
+                <div class="comment-header">
+                  <span class="comment-author">{{ c.userName }}</span>
+                  <span class="comment-time">{{ getTimeSince(c.timestamp) }}</span>
+                </div>
+                <p>{{ c.comment }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeDetailModal()">Close</button>
+
+        <!-- Pending / All tabs — original approve/reject flow -->
+        <ng-container
+          *ngIf="activeTab !== 'confirmation' && detailRequest && detailRequest.currentStage === 'Asset Manager Approval' && detailRequest.status === RequestStatus.PENDING">
+          <button class="btn-approve" (click)="directConfirmAction(detailRequest, 'approve')">
+            <span class="material-icons-outlined">check</span>
+            Approve
+          </button>
+          <button class="btn-reject" (click)="directConfirmAction(detailRequest, 'reject')">
+            <span class="material-icons-outlined">close</span>
+            Reject
+          </button>
+        </ng-container>
+
+        <!-- Confirmation Requests tab — dedicated approve/reject flow -->
+        <ng-container
+          *ngIf="activeTab === 'confirmation' && detailRequest && detailRequest.requestType === RequestType.RETURN_ASSET && detailRequest.status !== 'Rejected' && detailRequest.status !== 'Completed'">
+          <button class="btn-approve" (click)="directConfirmAction(detailRequest, 'approve')">
+            <span class="material-icons-outlined">check</span>
+            Approve
+          </button>
+          <button class="btn-reject" (click)="directConfirmAction(detailRequest, 'reject')">
+            <span class="material-icons-outlined">close</span>
+            Reject
+          </button>
+        </ng-container>
+
+        <!-- Old confirmation handling was only valid for normal asset confirmations, not return final confirmations. -->
+        <!--
+        <ng-container
+          *ngIf="activeTab === 'confirmation' && detailRequest && detailRequest.status !== 'Rejected' && detailRequest.status !== 'Completed'">
+          <button class="btn-approve" (click)="directConfirmActionForConfirmation(detailRequest, 'approve')">
+            <span class="material-icons-outlined">check</span>
+            Approve
+          </button>
+          <button class="btn-reject" (click)="directConfirmActionForConfirmation(detailRequest, 'reject')">
+            <span class="material-icons-outlined">close</span>
+            Reject
+          </button>
+        </ng-container>
+        -->
+        <ng-container
+          *ngIf="activeTab === 'confirmation' && detailRequest && detailRequest.requestType !== RequestType.RETURN_ASSET && detailRequest.status !== 'Rejected' && detailRequest.status !== 'Completed'">
+          <button class="btn-approve" (click)="directConfirmActionForConfirmation(detailRequest, 'approve')">
+            <span class="material-icons-outlined">check</span>
+            Approve
+          </button>
+          <button class="btn-reject" (click)="directConfirmActionForConfirmation(detailRequest, 'reject')">
+            <span class="material-icons-outlined">close</span>
+            Reject
+          </button>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+</div>

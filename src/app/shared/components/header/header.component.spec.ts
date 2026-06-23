@@ -1,0 +1,22 @@
+import { ComponentFixture, TestBed } from '@angular/core';
+import { HeaderComponent } from './header.component';
+import { FormsModule } from '@angular/forms';
+
+describe('HeaderComponent', () => {
+  let component: HeaderComponent;
+  let fixture: ComponentFixture<HeaderComponent>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      declarations: [HeaderComponent],
+      imports: [FormsModule]
+    });
+    fixture = TestBed.createComponent(HeaderComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+});

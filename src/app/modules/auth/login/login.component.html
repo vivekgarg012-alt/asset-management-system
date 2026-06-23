@@ -1,0 +1,107 @@
+<div class="auth-wrapper">
+  <div class="auth-card animate-scale-in">
+    <!-- Form Side -->
+    <div class="auth-form-container">
+      <div class="form-header">
+        <div class="logo">
+          <img src="assets/images/adnate-logo.png" alt="Adnate IT Solutions" class="logo-img">
+        </div>
+        <h1 class="welcome-text">Welcome Back</h1>
+        <p class="subtitle">Sign in to your asset management dashboard</p>
+      </div>
+
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="auth-form">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <div class="input-group">
+            <span class="material-icons-outlined input-icon">mail</span>
+            <input type="email" id="email" formControlName="email" placeholder="Enter your email"
+              [class.is-invalid]="f['email'].touched && f['email'].errors">
+          </div>
+          <div *ngIf="f['email'].touched && f['email'].errors" class="error-msg">
+            <span *ngIf="f['email'].errors['required']">Email is required</span>
+            <span *ngIf="f['email'].errors['email']">Invalid email format</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-group">
+            <span class="material-icons-outlined input-icon">lock</span>
+            <input [type]="showPassword ? 'text' : 'password'" id="password" formControlName="password"
+              placeholder="Enter your password" [class.is-invalid]="f['password'].touched && f['password'].errors">
+            <button type="button" class="toggle-password" (click)="togglePasswordVisibility()">
+              <span class="material-icons-outlined">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          <div *ngIf="f['password'].touched && f['password'].errors" class="error-msg">
+            <span *ngIf="f['password'].errors['required']">Password is required</span>
+          </div>
+        </div>
+
+        <div class="login-error-banner" *ngIf="loginError">
+          <span class="material-icons-outlined">error_outline</span>
+          <span>{{ loginError }}</span>
+        </div>
+
+        <button type="submit" class="btn-submit" [disabled]="isLoading">
+          <span *ngIf="!isLoading">Sign In</span>
+          <div *ngIf="isLoading" class="spinner"></div>
+        </button>
+
+        <div class="form-footer">
+          <!-- <p>Don't have an account? <a routerLink="/auth/register">Create Account</a></p> -->
+          <p class="copyright">&copy; 2026 Adnate IT Solutions. All rights reserved.</p>
+        </div>
+      </form>
+    </div>
+
+    <!-- Visual Side -->
+    <div class="auth-visual-container">
+      <img src="assets/images/asset-audit-revenue.png" alt="Enterprise Asset Dashboard" class="bg-image">
+      <div class="overlay"></div>
+
+      <!-- Floating Cards -->
+      <div class="floating-card card-1 animate-slide-up" style="animation-delay: 0.2s">
+        <div class="card-icon blue">
+          <span class="material-icons">event_available</span>
+        </div>
+        <div class="card-content">
+          <h4>Asset Audit Scheduled</h4>
+          <p>10:30 AM — 11:30 AM</p>
+        </div>
+      </div>
+
+      <div class="floating-card card-2 animate-slide-up" style="animation-delay: 0.6s">
+        <div class="card-icon green">
+          <span class="material-icons">groups</span>
+        </div>
+        <div class="card-content">
+          <h4>System Standup</h4>
+          <p>09:00 AM — 09:30 AM</p>
+          <div class="avatars">
+            <span class="avatar blue">S</span>
+            <span class="avatar purple">R</span>
+            <span class="avatar amber">M</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="calendar-widget animate-scale-in" style="animation-delay: 1s">
+        <div class="cal-header">
+          <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span>
+        </div>
+        <div class="cal-body">
+          <span>12</span><span>13</span><span class="active">14</span><span>15</span><span>16</span>
+        </div>
+        <div class="cal-footer">
+          <span class="material-icons">person_add</span>
+          <div class="stats">
+            <strong>12</strong>
+            <span>New Requests</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

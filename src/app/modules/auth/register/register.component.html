@@ -1,0 +1,169 @@
+<div class="auth-wrapper">
+  <div class="auth-card animate-scale-in">
+    <!-- Form Side -->
+    <div class="auth-form-container">
+      <div class="form-header">
+        <h1 class="welcome-text">Create Account</h1>
+        <p class="subtitle">Register to access the asset management portal</p>
+      </div>
+
+      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="firstName">First Name</label>
+            <div class="input-group">
+              <span class="material-icons-outlined input-icon">person</span>
+              <input 
+                type="text" 
+                id="firstName" 
+                formControlName="firstName" 
+                placeholder="Enter your first name"
+                [class.is-invalid]="f['firstName'].touched && f['firstName'].errors"
+              >
+            </div>
+            <div *ngIf="f['firstName'].touched && f['firstName'].errors" class="error-msg">
+              <span *ngIf="f['firstName'].errors['required']">Required</span>
+              <span *ngIf="f['firstName'].errors['minLength']">Min 2 chars</span>
+            </div>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="lastName">Last Name</label>
+            <div class="input-group">
+              <span class="material-icons-outlined input-icon">person</span>
+              <input 
+                type="text" 
+                id="lastName" 
+                formControlName="lastName" 
+                placeholder="Enter your last name"
+                [class.is-invalid]="f['lastName'].touched && f['lastName'].errors"
+              >
+            </div>
+            <div *ngIf="f['lastName'].touched && f['lastName'].errors" class="error-msg">
+              <span *ngIf="f['lastName'].errors['required']">Required</span>
+              <span *ngIf="f['lastName'].errors['minLength']">Min 2 chars</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="email">Email Address</label>
+            <div class="input-group">
+              <span class="material-icons-outlined input-icon">mail</span>
+              <input 
+                type="email" 
+                id="email" 
+                formControlName="email" 
+                placeholder="Enter your email"
+                [class.is-invalid]="f['email'].touched && f['email'].errors"
+              >
+            </div>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="phoneNumber">Phone Number</label>
+            <div class="input-group">
+              <span class="material-icons-outlined input-icon">call</span>
+              <input 
+                type="text" 
+                id="phoneNumber" 
+                formControlName="phoneNumber" 
+                placeholder="Enter your phone number"
+                [class.is-invalid]="f['phoneNumber'].touched && f['phoneNumber'].errors"
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="password">Password</label>
+            <div class="input-group">
+              <span class="material-icons-outlined input-icon">lock</span>
+              <input 
+                [type]="showPassword ? 'text' : 'password'" 
+                id="password" 
+                formControlName="password" 
+                placeholder="Create a password"
+                [class.is-invalid]="f['password'].touched && f['password'].errors"
+              >
+              <button type="button" class="toggle-password" (click)="togglePasswordVisibility()">
+                <span class="material-icons-outlined">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="confirmPassword">Confirm Password</label>
+            <div class="input-group">
+              <span class="material-icons-outlined input-icon">shield</span>
+              <input 
+                [type]="showConfirmPassword ? 'text' : 'password'" 
+                id="confirmPassword" 
+                formControlName="confirmPassword" 
+                placeholder="Confirm your password"
+                [class.is-invalid]="f['confirmPassword'].touched && f['confirmPassword'].errors || registerForm.errors?.['passwordMismatch']"
+              >
+              <button type="button" class="toggle-password" (click)="toggleConfirmPasswordVisibility()">
+                <span class="material-icons-outlined">{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="f['password'].touched && f['password'].errors" class="form-error-block">
+          <p *ngIf="f['password'].errors['passwordComplexity']">Password must have 8 characters, Upper/Lower case, Number & Special Char.</p>
+        </div>
+        <div *ngIf="registerForm.touched && registerForm.errors?.['passwordMismatch']" class="form-error-block">
+          <p>Passwords do not match.</p>
+        </div>
+
+        <button type="submit" class="btn-submit" [disabled]="isLoading">
+          <span *ngIf="!isLoading">Create Account</span>
+          <div *ngIf="isLoading" class="spinner"></div>
+        </button>
+
+        <div class="form-footer">
+          <p>Already have an account? <a routerLink="/auth/login">Sign In</a></p>
+          <p class="copyright">&copy; 2026 Adnate IT Solutions. All rights reserved.</p>
+        </div>
+      </form>
+    </div>
+
+    <!-- Visual Side -->
+    <div class="auth-visual-container">
+      <img src="assets/images/asset-audit-revenue.png" alt="Asset Management Dashboard" class="bg-image">
+      <div class="overlay"></div>
+      
+      <!-- Floating Cards -->
+      <div class="floating-card card-1 animate-slide-up" style="animation-delay: 0.2s">
+        <div class="card-icon blue">
+          <span class="material-icons">rocket_launch</span>
+        </div>
+        <div class="card-content">
+          <h4>Start Your Journey</h4>
+          <p>Join thousands of enterprises</p>
+        </div>
+      </div>
+
+      <div class="feature-tag card-2 animate-slide-up" style="animation-delay: 0.6s">
+        <span class="material-icons-outlined icon pink">business_center</span>
+        <div class="details">
+          <strong>5000+</strong>
+          <span>Assets Managed</span>
+        </div>
+      </div>
+
+      <div class="floating-card card-3 animate-slide-up" style="animation-delay: 1s">
+        <div class="card-icon indigo">
+          <span class="material-icons">diversity_3</span>
+        </div>
+        <div class="card-content">
+          <h4>Growing Team</h4>
+          <p>500+ employees worldwide</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

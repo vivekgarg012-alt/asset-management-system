@@ -1,0 +1,610 @@
+<div class="page-container">
+  <div class="page-header master-header mb-24">
+    <div>
+      <h2 class="page-title">Master Data</h2>
+      <p class="page-subtitle">Manage asset types, categories, assets and project masters</p>
+    </div>
+  </div>
+
+  <div class="grid grid-3 gap-16 mb-24">
+    <app-stat-card
+      *ngFor="let card of summaryCards"
+      [label]="card.label"
+      [value]="card.value"
+      [icon]="card.icon"
+      [color]="card.color">
+    </app-stat-card>
+  </div>
+
+  <div class="tab-bar mb-24">
+    <div class="flex gap-8">
+      <button class="tab-btn" [class.active]="activeTab === 'types'" (click)="setTab('types')">
+        <span class="material-icons-outlined">category</span>
+        Asset Types ({{ assetTypes.length }})
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'categories'" (click)="setTab('categories')">
+        <span class="material-icons-outlined">dashboard</span>
+        Subcategories ({{ assetCategories.length }})
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'assets'" (click)="setTab('assets')">
+        <span class="material-icons-outlined">inventory_2</span>
+        Assets ({{ assets.length }})
+      </button>
+    </div>
+    <div class="flex gap-8 items-center">
+      <ng-container *ngIf="activeTab === 'assets'">
+        <button class="btn btn-outline" style="display: flex; align-items: center; gap: 4px;" (click)="downloadTemplate()" title="Download Excel Template for Bulk Upload">
+          <span class="material-icons-outlined" style="font-size: 18px;">download</span>
+          Template
+        </button>
+        <button class="btn btn-outline" style="display: flex; align-items: center; gap: 4px;" (click)="triggerBulkUpload()" title="Upload Bulk Assets via Excel">
+          <span class="material-icons-outlined" style="font-size: 18px;">upload</span>
+          Bulk Upload
+        </button>
+        <input type="file" #fileInput hidden accept=".xlsx, .xls" (change)="onFileChange($event)">
+      </ng-container>
+      <button class="btn btn-primary add-asset-btn" style="display: flex; align-items: center; gap: 4px;" (click)="openAddModal()">
+        <span class="material-icons-outlined" style="font-size: 18px;">add</span>
+        {{ addButtonText }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="activeTab === 'types'" class="animate-slide-up">
+    <div class="card asset-by-type-card">
+      <div class="card-header border-0 pb-0">
+        <div class="flex items-center gap-8">
+          <span class="material-icons-outlined text-muted" style="font-size: 20px;">donut_large</span>
+          <h3 class="m-0" style="font-size: 1.1rem; font-weight: 700;">Assets by Type</h3>
+        </div>
+        <span class="text-xs text-muted">Distribution of {{ assets.length }} assets across types</span>
+      </div>
+      <div class="card-body">
+        <div class="asset-analysis-container">
+          <!-- Chart Side -->
+          <div class="chart-section">
+            <div class="chart-wrapper">
+              <canvas baseChart
+                [data]="assetDoughnutChartData"
+                [options]="assetDoughnutChartOptions"
+                [type]="'doughnut'">
+              </canvas>
+              <div class="chart-center">
+                <span class="total-count">{{ assets.length }}</span>
+                <span class="total-label">Total</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- List Side -->
+          <div class="analysis-list">
+            <div class="analysis-item" *ngFor="let item of assetTypes">
+              <div class="item-header">
+                <div class="type-info">
+                  <div class="item-icon" [style.background-color]="getAssetTypeColor(item.type) + '15'" [style.color]="getAssetTypeColor(item.type)">
+                    <span class="material-icons-outlined">{{ getAssetTypeIcon(item.type) }}</span>
+                  </div>
+                  <span class="item-name">{{ item.type }}</span>
+                </div>
+                <span class="item-percentage" [style.background-color]="getAssetTypeColor(item.type) + '15'" [style.color]="getAssetTypeColor(item.type)">
+                  {{ getAssetTypeShare(item.count) }}%
+                </span>
+              </div>
+              
+              <div class="progress-container">
+                <div class="progress-bar" [style.width.%]="getAssetTypeShare(item.count)" [style.background-color]="getAssetTypeColor(item.type)"></div>
+              </div>
+              
+              <div class="item-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="item-count">{{ item.count }} assets</span>
+                <button class="btn btn-sm btn-outline-danger" (click)="deleteAssetType(item.id)">
+                  <span class="material-icons-outlined" style="font-size: 16px;">delete</span>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="activeTab === 'categories'" class="animate-slide-up">
+    <div class="card">
+      <div class="card-header">
+        <h3>Subcategory Master <span class="badge badge-blue" style="margin-left: 8px;">{{ filteredEnrichedSubcategories.length }}</span></h3>
+        <div class="flex gap-12 items-center">
+          <select class="form-control asset-filter" [(ngModel)]="selectedSubCategoryTypeFilter" (ngModelChange)="filterSubcategories()">
+            <option value="">All Types</option>
+            <option *ngFor="let type of assetTypeOptions" [value]="type">{{ type }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Subcategory</th>
+                <th>Asset Type</th>
+                <th>Total</th>
+                <th>Assigned</th>
+                <th>Available</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let sub of paginatedSubcategories" class="subcat-row" (click)="openSubDetails(sub)">
+                <td>
+                  <div class="subcat-cell">
+                    <div class="subcat-icon" [style.background-color]="getAssetTypeColor(sub.type) + '12'" [style.color]="getAssetTypeColor(sub.type)">
+                      <span class="material-icons-outlined">{{ sub.icon }}</span>
+                    </div>
+                    <span class="subcat-name">{{ sub.name }}</span>
+                  </div>
+                </td>
+                <td><span class="badge" [ngClass]="getTypeBadgeClass(sub.type)">{{ sub.type }}</span></td>
+                <td><span class="count-total">{{ sub.totalCount }}</span></td>
+                <td><span class="count-assigned">{{ sub.assignedCount }}</span></td>
+                <td><span class="count-available">{{ sub.availableCount }}</span></td>
+                <td>
+                  <div class="flex gap-8">
+                    <button class="btn btn-sm btn-outline" title="View Assets" (click)="$event.stopPropagation(); openSubDetails(sub)">
+                      <span class="material-icons-outlined" style="font-size: 16px;">visibility</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" title="Delete" (click)="$event.stopPropagation(); deleteSubCategory(sub.id)">
+                      <span class="material-icons-outlined" style="font-size: 16px;">delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="filteredEnrichedSubcategories.length === 0">
+                <td colspan="6" class="empty-state">
+                  <span class="material-icons-outlined">dashboard</span>
+                  No subcategories found for the selected type
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Subcategory Pagination -->
+        <div class="pagination-wrapper" *ngIf="filteredEnrichedSubcategories.length > 0">
+          <div class="pagination-bar">
+            <div class="pagination-info">
+              Showing {{ (subCatCurrentPage - 1) * subCatPageSize + 1 }} to {{ (subCatCurrentPage * subCatPageSize > filteredEnrichedSubcategories.length) ? filteredEnrichedSubcategories.length : (subCatCurrentPage * subCatPageSize) }} of {{ filteredEnrichedSubcategories.length }} subcategories
+            </div>
+            <div class="pagination-controls">
+              <button class="page-btn" [disabled]="subCatCurrentPage === 1" (click)="setSubCatPage(subCatCurrentPage - 1)" title="Previous Page">
+                <span class="material-icons-outlined">chevron_left</span>
+              </button>
+              <button class="page-btn" 
+                      *ngFor="let page of subCatPageNumbers" 
+                      [class.active]="page === subCatCurrentPage"
+                      (click)="setSubCatPage(page)">
+                {{ page }}
+              </button>
+              <button class="page-btn" [disabled]="subCatCurrentPage === totalSubCatPages" (click)="setSubCatPage(subCatCurrentPage + 1)" title="Next Page">
+                <span class="material-icons-outlined">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="activeTab === 'assets'" class="animate-slide-up">
+    <div class="card">
+      <div class="card-header">
+        <h3>Asset Master Table <span class="badge badge-blue" style="margin-left: 8px;">{{ filteredAssets.length }}</span></h3>
+        <div class="flex gap-12 flex-wrap items-center">
+          <select class="form-control asset-filter" [(ngModel)]="selectedAssetType" (ngModelChange)="filterAssets()">
+            <option value="">All Types</option>
+            <option *ngFor="let type of assetTypeOptions" [value]="type">{{ type }}</option>
+          </select>
+          <select class="form-control asset-filter" [(ngModel)]="selectedAssetSubCategory" (ngModelChange)="filterAssets()">
+            <option value="">All Sub Categories</option>
+            <option *ngFor="let subCat of assetSubCategoryOptions" [value]="subCat">{{ subCat }}</option>
+          </select>
+          <select class="form-control asset-filter" [(ngModel)]="selectedAssetStatus" (ngModelChange)="filterAssets()">
+            <option value="">All Statuses</option>
+            <option *ngFor="let status of assetStatusOptions" [value]="status">{{ formatAssetStatus(status) }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Serial Number</th>
+                <th>Type</th>
+                <th>Assigned To</th>
+                <th>Status</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let asset of paginatedAssets" class="asset-row" (click)="openAssetDetails(asset)">
+                <td>
+                  <div class="asset-cell">
+                    <div class="asset-avatar" [style.background]="getAssetTypeColor(asset.type)">{{ asset.assetTag.slice(0, 2) }}</div>
+                    <div>
+                      <div class="asset-name">{{ asset.name }}</div>
+                      <div class="asset-id-tag" style="font-size: 11px; color: #64748b; font-weight: 500;">{{ asset.assetTag }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="serial-tag" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #334155;">{{ asset.serialNumber }}</span></td>
+                <td><span class="badge" [ngClass]="getTypeBadgeClass(asset.type)">{{ asset.type }}</span></td>
+                <td>
+                  <span *ngIf="asset.status?.toLowerCase() === 'allocated'" style="font-weight: 500; color: #1e293b;">
+                    {{ asset.assignedToName || asset.assignedTo || 'Assigned' }}
+                  </span>
+                  <span *ngIf="asset.status?.toLowerCase() !== 'allocated'" class="text-muted">-</span>
+                </td>
+                <td><span class="badge" [ngClass]="getStatusBadgeClass(asset.status)">{{ formatAssetStatus(asset.status) }}</span></td>
+                <td>
+                  <div class="flex items-center justify-center gap-8" style="min-height: 40px;" (click)="$event.stopPropagation()">
+                    <button *ngIf="asset.status?.toLowerCase() === 'allocated'" class="btn btn-sm btn-outline-primary" (click)="makeAssetAvailable(asset)" title="Release asset and make it available">
+                      <span class="material-icons-outlined" style="font-size: 16px;">restart_alt</span>
+                      Make Available
+                    </button>
+                    <button *ngIf="canDeleteAsset(asset)" class="btn btn-sm btn-outline-danger" (click)="deleteAsset(asset.id)">
+                      <span class="material-icons-outlined" style="font-size: 16px;">delete</span>
+                      Delete
+                    </button>
+                    <span *ngIf="!canDeleteAsset(asset) && asset.status?.toLowerCase() !== 'allocated'" class="locked-badge" title="Only available or blank assets can be deleted">
+                      <span class="material-icons-outlined">lock</span>
+                      Locked
+                    </span>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="filteredAssets.length === 0">
+                <td colspan="6" class="empty-state">
+                  <span class="material-icons-outlined">search_off</span>
+                  No assets found
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-wrapper" *ngIf="filteredAssets.length > 0">
+          <div class="pagination-bar">
+            <div class="pagination-info">
+              Showing {{ (currentPage - 1) * pageSize + 1 }} to {{ (currentPage * pageSize > filteredAssets.length) ? filteredAssets.length : (currentPage * pageSize) }} of {{ filteredAssets.length }} assets
+            </div>
+            <div class="pagination-controls">
+              <button class="page-btn" [disabled]="currentPage === 1" (click)="prevPage()" title="Previous Page">
+                <span class="material-icons-outlined">chevron_left</span>
+              </button>
+              <button class="page-btn" 
+                      *ngFor="let page of pageNumbers" 
+                      [class.active]="page === currentPage"
+                      (click)="setPage(page)">
+                {{ page }}
+              </button>
+              <button class="page-btn" [disabled]="currentPage === totalPages" (click)="nextPage()" title="Next Page">
+                <span class="material-icons-outlined">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" *ngIf="showAddAssetModal">
+  <div class="modal-container animate-slide-up asset-modal">
+    <div class="modal-header">
+      <h3>Add Asset</h3>
+      <button class="btn-icon" (click)="closeAddAssetModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="grid grid-2 gap-16">
+        <div class="form-group">
+          <label>Asset Type</label>
+          <select class="form-control" [(ngModel)]="newAsset.type" (ngModelChange)="onAssetTypeChange($event)">
+            <option value="">Select type</option>
+            <option *ngFor="let type of assetTypeOptions" [value]="type">{{ type }}</option>
+          </select>
+          <div class="field-error" *ngIf="isFieldInvalid('type')">Please select an asset type.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Asset Category</label>
+          <select class="form-control" [(ngModel)]="newAsset.category" (ngModelChange)="onAssetCategoryChange($event)" [disabled]="categoryDisabled">
+            <option value="">{{ categoryDisabled ? 'Select type first' : 'Select category' }}</option>
+            <option *ngFor="let category of getCategoriesForSelectedType()" [value]="category.name">
+              {{ category.name }}
+            </option>
+          </select>
+          <div class="field-error" *ngIf="submittedAssetForm && !categoryDisabled && !newAsset.category">
+            Please select an asset category.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" class="form-control" [(ngModel)]="newAsset.name" (ngModelChange)="onAssetNameChange($event)" placeholder="Asset name">
+          <div class="field-error" *ngIf="isFieldInvalid('name')">Asset name is required.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Serial Number</label>
+          <input type="text" class="form-control" [(ngModel)]="newAsset.serialNumber" placeholder="Serial number">
+          <div class="field-error" *ngIf="isFieldInvalid('serialNumber')">Serial number is required.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Purchase Date</label>
+          <input type="date" class="form-control" [(ngModel)]="newAsset.purchaseDate">
+          <div class="field-error" *ngIf="submittedAssetForm && !newAsset.purchaseDate">Purchase date is required.</div>
+          <div class="field-error" *ngIf="submittedAssetForm && newAsset.purchaseDate && isPurchaseDateFuture()">Purchase date cannot be in the future.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Warranty Expiry</label>
+          <input type="date" class="form-control" [(ngModel)]="newAsset.warrantyExpiry">
+          <div class="field-error" *ngIf="submittedAssetForm && isWarrantyExpiryMandatory() && !newAsset.warrantyExpiry">Warranty expiry is required for this asset type.</div>
+          <div class="field-error" *ngIf="submittedAssetForm && newAsset.warrantyExpiry && isWarrantyExpiryPast()">Warranty expiry cannot be in the past.</div>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 24px;">
+          <input type="checkbox" id="isExpiryMandatory" [(ngModel)]="newAsset.isExpiryMandatory" style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="isExpiryMandatory" style="margin: 0; cursor: pointer; font-weight: 500; color: #475569;">For Waranty Expiry Reminder check this box</label>
+        </div>
+
+
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAddAssetModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveAsset()">{{ isSaving ? 'Saving...' : 'Save Asset' }}</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showAddTypeModal">
+  <div class="modal-container animate-slide-up asset-modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>Add Asset Type</h3>
+      <button class="btn-icon" (click)="closeAddTypeModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group mb-16">
+        <label>Type Name</label>
+        <input type="text" class="form-control" [(ngModel)]="newTypeName" placeholder="Enter asset type name (e.g. Hardware)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAddTypeModal()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="!newTypeName.trim() || isSaving" (click)="saveAssetType()">
+        {{ isSaving ? 'Saving...' : 'Save Asset Type' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showAddSubCategoryModal">
+  <div class="modal-container animate-slide-up asset-modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>Add Subcategory</h3>
+      <button class="btn-icon" (click)="closeAddSubCategoryModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group mb-16">
+        <label>Asset Type</label>
+        <select class="form-control" [(ngModel)]="selectedTypeIdForSubCategory">
+          <option value="">Select Asset Type</option>
+          <option *ngFor="let bt of assetTypes" [value]="bt.id || 'typ_' + bt.type.toLowerCase().slice(0, 3)">{{ bt.type }}</option>
+        </select>
+      </div>
+      <div class="form-group mb-16">
+        <label>Subcategory Name</label>
+        <input type="text" class="form-control" [(ngModel)]="newSubCategoryName" placeholder="Enter subcategory name (e.g. Laptops)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAddSubCategoryModal()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="!newSubCategoryName.trim() || !selectedTypeIdForSubCategory || isSaving" (click)="saveSubCategory()">
+        {{ isSaving ? 'Saving...' : 'Save Subcategory' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Subcategory Detail Modal (Drill-down) -->
+<div class="modal-overlay" *ngIf="showSubDetailModal && selectedSubForDetail">
+  <div class="modal-container animate-slide-up detail-modal" style="max-width: 1100px;">
+    <div class="modal-header enterprise-header">
+      <div class="flex items-center gap-16">
+         <div class="detail-type-icon" [style.background-color]="getAssetTypeColor(selectedSubForDetail.type)">
+            <span class="material-icons-outlined text-white">{{ selectedSubForDetail.icon }}</span>
+         </div>
+         <div>
+            <h3 class="m-0">{{ selectedSubForDetail.name }}</h3>
+            <span class="enterprise-badge">Enterprise Insights</span>
+         </div>
+      </div>
+      <button class="btn-icon" (click)="closeSubDetails()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body p-0">
+      <!-- Asset List -->
+      <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+        <table class="table table-hover mb-0">
+          <thead class="sticky-top">
+            <tr>
+              <th>Asset Id</th>
+              <th>Name</th>
+              <th>Serial Number</th>
+              <th>Status</th>
+              <th>Assigned To</th>
+              <th>Warranty</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let asset of paginatedSubAssets">
+              <td><span class="tag-label">{{ asset.assetTag }}</span></td>
+              <td><strong>{{ asset.name }}</strong></td>
+              <td><span style="font-family: 'Inter', sans-serif; font-weight: 500; color: #334155; font-size: 0.875rem;">{{ asset.serialNumber }}</span></td>
+              <td><span class="badge" [ngClass]="getStatusBadgeClass(asset.status)">{{ formatAssetStatus(asset.status) }}</span></td>
+              <td>
+                <span *ngIf="asset.status?.toLowerCase() === 'allocated'" style="font-weight: 500; color: #1e293b;">
+                   {{ asset.assignedToName || asset.assignedTo || 'Assigned' }}
+                </span>
+                <span *ngIf="asset.status?.toLowerCase() !== 'allocated'" class="text-muted">-</span>
+              </td>
+              <td>
+                <span style="font-family: 'Inter', sans-serif; font-weight: 500; color: #334155; font-size: 0.875rem;" [class.text-danger]="selectedSubForDetail.warrantyHealth < 100">
+                   {{ asset.warrantyExpiry | date:'mediumDate' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Sub-modal Pagination -->
+      <div class="pagination-wrapper border-top p-12" *ngIf="assetsInSelectedSub.length > subDetailsPageSize">
+        <div class="pagination-bar" style="border: none; padding: 0;">
+          <div class="pagination-info text-xs">
+            Showing {{ (subDetailsCurrentPage - 1) * subDetailsPageSize + 1 }} to {{ (subDetailsCurrentPage * subDetailsPageSize > assetsInSelectedSub.length) ? assetsInSelectedSub.length : (subDetailsCurrentPage * subDetailsPageSize) }} of {{ assetsInSelectedSub.length }}
+          </div>
+          <div class="pagination-controls">
+            <button class="page-btn btn-xs" [disabled]="subDetailsCurrentPage === 1" (click)="setSubPage(subDetailsCurrentPage - 1)">
+              <span class="material-icons-outlined" style="font-size: 16px;">chevron_left</span>
+            </button>
+            <button class="page-btn btn-xs" 
+                    *ngFor="let page of subDetailsPageNumbers" 
+                    [class.active]="page === subDetailsCurrentPage"
+                    (click)="setSubPage(page)">
+              {{ page }}
+            </button>
+            <button class="page-btn btn-xs" [disabled]="subDetailsCurrentPage === subDetailsTotalPages" (click)="setSubPage(subDetailsCurrentPage + 1)">
+              <span class="material-icons-outlined" style="font-size: 16px;">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" (click)="closeSubDetails()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Asset Detail Modal (Drill-down) -->
+<div class="modal-overlay" *ngIf="showAssetDetailModal && selectedAssetForDetail">
+  <div class="modal-container animate-slide-up detail-modal" style="max-width: 600px;">
+    <div class="modal-header enterprise-header" [style.background]="getAssetTypeColor(selectedAssetForDetail.type)">
+      <div class="flex items-center gap-16">
+         <div class="detail-type-icon" style="background: rgba(255,255,255,0.2)">
+            <span class="material-icons-outlined text-white">{{ getAssetTypeIcon(selectedAssetForDetail.type) }}</span>
+         </div>
+         <div>
+            <h3 class="m-0 text-white">{{ selectedAssetForDetail.name }}</h3>
+            <span class="enterprise-badge" style="color: rgba(255,255,255,0.7)">Asset Intelligence</span>
+         </div>
+      </div>
+      <button class="btn-icon" (click)="closeAssetDetails()" style="background: rgba(255,255,255,0.1); color: white; border: none;">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="asset-info-grid">
+        <div class="info-item">
+          <label>Asset Tag</label>
+          <div class="info-value">{{ selectedAssetForDetail.assetTag }}</div>
+        </div>
+        <div class="info-item">
+          <label>Serial Number</label>
+          <div class="info-value">{{ selectedAssetForDetail.serialNumber }}</div>
+        </div>
+        <div class="info-item">
+          <label>Type</label>
+          <div class="info-value">
+            <span class="badge" [ngClass]="getTypeBadgeClass(selectedAssetForDetail.type)">{{ selectedAssetForDetail.type }}</span>
+          </div>
+        </div>
+        <div class="info-item">
+          <label>Category</label>
+          <div class="info-value">{{ selectedAssetForDetail.category }}</div>
+        </div>
+        <div class="info-item">
+          <label>Status</label>
+          <div class="info-value">
+            <span class="badge" [ngClass]="getStatusBadgeClass(selectedAssetForDetail.status)">{{ formatAssetStatus(selectedAssetForDetail.status) }}</span>
+          </div>
+        </div>
+        <div class="info-item" *ngIf="selectedAssetForDetail.status?.toLowerCase() === 'allocated'">
+          <label>Assigned To</label>
+          <div class="info-value" style="color: #2563eb; font-weight: 600;">{{ selectedAssetForDetail.assignedToName || selectedAssetForDetail.assignedTo }}</div>
+        </div>
+        <div class="info-item">
+          <label>Purchase Date</label>
+          <div class="info-value">{{ selectedAssetForDetail.purchaseDate | date:'longDate' }}</div>
+        </div>
+        <div class="info-item">
+          <label>Warranty Expiry</label>
+          <div class="info-value" [class.text-danger]="isWarrantyExpired(selectedAssetForDetail.warrantyExpiry)">
+            {{ selectedAssetForDetail.warrantyExpiry | date:'longDate' }}
+          </div>
+        </div>
+        <div class="info-item">
+          <label>Warranty Expiry Reminder</label>
+          <div class="info-value">
+            <span [style.color]="selectedAssetForDetail.temp3 === '1' ? '#10b981' : '#ef4444'" style="font-weight: 500;">
+              {{ selectedAssetForDetail.temp3 === '1' ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" (click)="closeAssetDetails()">Close</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" *ngIf="showConfirmModal">
+  <div class="modal-container animate-slide-up confirmation-modal" style="max-width: 450px;">
+    <div class="modal-header">
+      <div [class]="confirmIconClass">
+        <span class="material-icons-outlined">{{ confirmIcon }}</span>
+      </div>
+      <h3>{{ confirmTitle }}</h3>
+      <button class="btn-icon" (click)="closeConfirmModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body text-center py-24">
+      <p class="confirm-message" style="margin: 0; color: #64748b; font-size: 1.1rem; line-height: 1.5;">{{ confirmMessage }}</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeConfirmModal()">{{ showConfirmAction ? 'Cancel' : 'Close' }}</button>
+      <button [class]="confirmIconClass === 'header-icon-info' ? 'btn btn-primary' : 'btn btn-danger'" (click)="handleConfirm()" *ngIf="showConfirmAction">
+        {{ isSaving ? 'Processing...' : confirmBtnText }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,54 @@
+<div class="dashboard-container">
+  <div class="grid grid-3 gap-24 mb-24">
+    <app-stat-card 
+      label="My Assets" 
+      [value]="myAssets.length" 
+      icon="devices" 
+      color="blue">
+    </app-stat-card>
+    <app-stat-card 
+      label="Pending Requests" 
+      [value]="pendingRequests.length" 
+      icon="pending_actions" 
+      color="amber">
+    </app-stat-card>
+    <app-stat-card 
+      label="Warranty Expiring soon" 
+      [value]="expiringWarrantyCount" 
+      icon="warning" 
+      color="red">
+    </app-stat-card>
+  </div>
+
+  <div class="card animate-slide-up">
+    <div class="card-header">
+      <h3>My Current Assets</h3>
+      <button class="btn btn-outline btn-sm" routerLink="/employee/my-assets">View All</button>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Warranty</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let asset of myAssets | slice:0:5">
+              <td><span class="text-bold">{{ asset.name }}</span></td>
+              <td>{{ formatSubcategory(asset.subCategory && asset.subCategory !== 'N/A' ? asset.subCategory : asset.category, asset.type) }}</td>
+              <td>{{ asset.warrantyExpiry | date }}</td>
+              <td><app-status-badge [status]="asset.status" [showIcon]="false"></app-status-badge></td>
+            </tr>
+            <tr *ngIf="myAssets.length === 0">
+              <td colspan="6" class="text-center text-muted p-24">No assets currently assigned to you.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

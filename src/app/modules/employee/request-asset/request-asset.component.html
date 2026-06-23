@@ -1,0 +1,72 @@
+<div class="card animate-fade-in" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-header pb-0 border-0">
+    <h3>Request New Asset</h3>
+    <p class="subtitle mt-8">Submit a request for new hardware, software, or other assets.</p>
+  </div>
+  <div class="card-body">
+    <form [formGroup]="requestForm" (ngSubmit)="onSubmit()" translate="no">
+      <div class="grid grid-2 gap-20 form-group">
+        <div>
+          <label>Asset Type *</label>
+          <select formControlName="assetType" class="form-control" (change)="onTypeChange()">
+            <option value="" disabled>Select Type</option>
+            <option *ngFor="let type of availableTypes" [value]="type.type_id">
+              {{ type.type_name }}
+            </option>
+          </select>
+        </div>
+        <div>
+          <label>Urgency *</label>
+          <select formControlName="urgency" class="form-control">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-1 gap-20 form-group">
+        <div>
+          <label>Sub-Category *</label>
+          <select formControlName="subCategory" class="form-control">
+            <option value="" disabled>Select Sub-Category</option>
+            <option *ngFor="let sub of availableSubCategories" [value]="sub.sub_category_id">
+              {{ sub.name }}
+            </option>
+          </select>
+          <p class="text-xs text-muted mt-4" *ngIf="availableSubCategories.length === 0">Please select an Asset Type first.</p>
+        </div>
+      </div>
+
+      <div class="form-group mt-24">
+        <label>Business Justification *</label>
+        <textarea formControlName="justification" class="form-control" data-gramm="false" spellcheck="false"
+          placeholder="Please explain why you need this asset..." rows="3"></textarea>
+      </div>
+
+      <div class="form-group mt-24 bg-gray"
+        style="padding: 16px; border-radius: var(--radius-md); background: var(--gray-50); border: 1px dashed var(--border-color);">
+        <div style="display: flex; gap: 12px; align-items: flex-start;">
+          <input type="checkbox" formControlName="hasEmailApproval" id="hasEmailApproval" style="margin-top: 4px;">
+          <div>
+            <label for="hasEmailApproval" style="margin-bottom: 4px;">I have pre-approval email from
+              Manager/Head</label>
+            <p class="text-sm text-muted">Checking this will skip the Team Lead approval stage and route directly to
+              Asset Manager.</p>
+
+            <div *ngIf="requestForm.get('hasEmailApproval')?.value" class="mt-16 animate-slide-up">
+              <input type="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg" (change)="onFileSelected($event)">
+              <p class="text-xs text-muted mt-8">Upload image (PNG, JPG) or PDF only</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-24 pt-16"
+        style="border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" routerLink="/employee/my-requests">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="onSubmit()">Submit Request</button>
+      </div>
+    </form>
+  </div>
+</div>

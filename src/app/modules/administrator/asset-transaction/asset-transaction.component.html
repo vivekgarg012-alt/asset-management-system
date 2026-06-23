@@ -1,0 +1,358 @@
+<div class="transaction-container animate-fade-in-up">
+  <div class="page-header mb-24">
+    <div class="header-content">
+      <h2 class="m-0">Asset Transactions</h2>
+      <p class="text-secondary mt-8 mb-0">Monitor ongoing and completed asset movements</p>
+    </div>
+  </div>
+
+  <div class="grid grid-4 gap-24 mb-24">
+    <app-stat-card label="Total Requests" [value]="totalTransactions" icon="assessment" color="blue"></app-stat-card>
+    <app-stat-card label="Pending Requests" [value]="pendingCount" icon="pending_actions" color="amber"></app-stat-card>
+    <app-stat-card label="Approved Requests" [value]="approvedCount" icon="verified" color="purple"></app-stat-card>
+    <app-stat-card label="Rejected" [value]="rejectedCount" icon="cancel" color="red"></app-stat-card>
+  </div>
+
+  <div class="grid grid-2 gap-24 mb-24">
+    <div class="card chart-card flex-column">
+      <div class="card-header border-0">
+        <h3>Request Trend</h3>
+        <span class="badge badge-primary">Last 6 Months</span>
+      </div>
+      <div class="card-body chart-body">
+        <canvas baseChart 
+          [type]="'line'" 
+          [data]="transactionTrendData" 
+          [options]="transactionTrendOptions">
+        </canvas>
+      </div>
+    </div>
+
+    <div class="card chart-card flex-column">
+      <div class="card-header border-0">
+        <h3>Request Status</h3>
+        <span class="badge badge-success">Overall</span>
+      </div>
+      <div class="card-body chart-body justify-center align-center d-flex position-relative">
+        <canvas baseChart 
+          [type]="'doughnut'" 
+          [data]="transactionStatusData" 
+          [options]="transactionStatusOptions">
+        </canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card table-card mb-24">
+    <div class="card-header border-0 d-flex justify-between align-center">
+      <div class="header-title">
+        <h3 class="m-0">Asset Request Table</h3>
+        <span class="count-badge" *ngIf="filteredRequests.length > 0">{{ filteredRequests.length }}</span>
+      </div>
+      <div class="table-actions">
+        <select class="filter-select" [value]="selectedRequestType" (change)="onRequestTypeChange($any($event.target).value)">
+          <option *ngFor="let option of requestTypeOptions" [value]="option">{{ option }}</option>
+        </select>
+        <select class="filter-select" [value]="selectedStatus" (change)="onStatusChange($any($event.target).value)">
+          <option *ngFor="let option of statusOptions" [value]="option">{{ option }}</option>
+        </select>
+        <div class="search-box">
+          <span class="material-icons-outlined search-icon">search</span>
+          <input type="text" placeholder="Search requests..." [value]="searchTerm" (input)="onSearchChange($any($event.target).value)">
+        </div>
+      </div>
+    </div>
+    <div class="table-state" *ngIf="isLoading">Loading requests...</div>
+    <div class="table-state table-error" *ngIf="!isLoading && errorMessage">{{ errorMessage }}</div>
+    <div class="table-responsive">
+      <table class="table hover-rows requests-table">
+        <thead>
+          <tr>
+            <th class="col-reqid">Request ID</th>
+            <th class="col-requester">Requester</th>
+            <th class="col-type">Subcategory</th>
+            <th class="col-urgency">Urgency</th>
+            <th class="col-date">Request Date</th>
+            <th class="col-status">Status</th>
+            <th class="col-approval" *ngIf="selectedRequestType !== 'Extend Warranty Requests'">Attachment</th>
+            <th class="col-track">Track</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let request of pagedRequests; trackBy: trackByRequestId" 
+              (click)="openDetailsModal(request)" class="clickable-row">
+            <td class="col-reqid"><span class="request-id-text">{{ request.requestId }}</span></td>
+            <td class="col-requester">
+              <div class="requester-wrap">
+                <div class="requester-avatar">{{ getRequesterInitials(request.userName) }}</div>
+                <div class="d-flex flex-column requester-cell">
+                  <span class="fw-500 requester-name">{{ request.userName }}</span>
+                  <span class="text-xs text-secondary requester-email">{{ request.userEmail }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="col-type">{{ formatSubcategory(request.subCategory) }}</td>
+            <td class="col-urgency"><span class="urgency-text">{{ request.urgency || '-' }}</span></td>
+            <td class="col-date">{{ request.createdAt | date:'mediumDate' }}</td>
+            <td class="col-status">
+              <span class="badge" [ngClass]="getStatusClass(request.status)">
+                {{ getStatusLabel(request.status) }}
+              </span>
+            </td>
+            <td class="col-approval" (click)="$event.stopPropagation()" *ngIf="selectedRequestType !== 'Extend Warranty Requests'">
+              <button *ngIf="request.emailApproval"
+                      class="btn btn-sm"
+                      (click)="downloadDocument(request.document, request.requestId)"
+                      style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-weight: 500; font-size: 12px; border-radius: 6px; background: rgba(59,130,246,0.08); color: #3b82f6; border: 1px solid rgba(59,130,246,0.2); cursor: pointer; width: fit-content; white-space: nowrap;">
+                <span class="material-icons-outlined" style="font-size: 14px;">attach_file</span>
+                View Attachment
+              </button>
+              <div *ngIf="!request.emailApproval" 
+                   class="text-muted" 
+                   style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; opacity: 0.6; width: fit-content; white-space: nowrap;">
+                <span class="material-icons-outlined" style="font-size: 14px;">hide_source</span>
+                No Attachment
+              </div>
+            </td>
+            <td class="col-track" (click)="$event.stopPropagation()">
+              <button class="btn-track" (click)="trackRequest(request)" title="Track Progress">
+                <span class="material-icons-outlined">insights</span>
+                TRACK
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!isLoading && !errorMessage && pagedRequests.length === 0">
+            <td colspan="8" class="text-center text-secondary">No requests found for the selected filters.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+        <div class="pagination-wrapper" *ngIf="!isLoading && filteredRequests.length > 0">
+          <div class="pagination-bar">
+            <div class="pagination-info">
+              Showing {{ startRecord }} to {{ endRecord }} of {{ filteredRequests.length }} requests
+            </div>
+            <div class="pagination-controls">
+              <button class="page-btn" [disabled]="currentPage === 1" (click)="prevPage()" title="Previous Page">
+                <span class="material-icons-outlined">chevron_left</span>
+              </button>
+              <button class="page-btn" 
+                      *ngFor="let page of pageNumbers" 
+                      [class.active]="page === currentPage"
+                      (click)="setPage(page)">
+                {{ page }}
+              </button>
+              <button class="page-btn" [disabled]="currentPage === totalPages" (click)="nextPage()" title="Next Page">
+                <span class="material-icons-outlined">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<!-- Request Tracking Modal -->
+<div class="modal-overlay" *ngIf="showTrackingModal" (click)="closeTrackingModal()">
+  <div class="modal-content tracking-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="modal-title">Request Progress Tracking</h3>
+      <button class="btn-close" (click)="closeTrackingModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body p-24">
+      <div class="request-summary mb-24" *ngIf="selectedTrackRequest" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+        <div class="summary-item">
+          <label>REQUEST ID</label>
+          <span class="value">{{ selectedTrackRequest.requestId }}</span>
+        </div>
+        <div class="summary-item">
+          <label>REQUESTER</label>
+          <span class="value">{{ selectedTrackRequest.userName }}</span>
+        </div>
+        <div class="summary-item">
+          <label>CURRENT STATUS</label>
+          <span class="value status-val">{{ getStatusLabel(selectedTrackRequest.status) }}</span>
+        </div>
+        <!-- Reason Section -->
+        <div class="summary-item" style="grid-column: span 3; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 8px;">
+          <label>REASON FOR REQUEST</label>
+          <span class="value" style="white-space: normal; line-height: 1.5; color: #475569; display: block; margin-top: 4px;">
+            {{ selectedTrackRequest.reason || 'No reason provided' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Overall Progress -->
+      <div class="progress-section mb-32">
+        <div class="progress-header mb-12">
+          <span class="progress-label">OVERALL COMPLETION</span>
+          <span class="progress-percentage">{{ overallProgress }}%</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" [style.width.%]="overallProgress"></div>
+        </div>
+      </div>
+
+      <!-- Tracking Timeline -->
+      <div class="tracking-timeline" [class.loading]="loadingProgress">
+        <div class="timeline-step" *ngFor="let step of trackingSteps; let last = last"
+             [class.completed]="step.isCompleted" [class.current]="step.isCurrent">
+
+          <div class="step-indicator">
+            <div class="step-icon">
+              <span class="material-icons-outlined" *ngIf="step.isCompleted">check_circle</span>
+              <span class="material-icons-outlined" *ngIf="!step.isCompleted && !step.isCurrent">radio_button_unchecked</span>
+              <span class="material-icons-outlined spinning" *ngIf="step.isCurrent">pending</span>
+            </div>
+            <div class="step-line" *ngIf="!last"></div>
+          </div>
+
+          <div class="step-content">
+            <div class="step-header">
+              <div class="step-name-block">
+                <h4 class="step-approver-name">{{ step.name }}</h4>
+                <span class="step-role-label">{{ step.roleName }}</span>
+              </div>
+              <span class="step-status-badge" [ngClass]="{
+                'badge-approved': step.status === 'Approved' || step.status === 'Completed',
+                'badge-pending': step.status === 'Pending',
+                'badge-rejected': step.status === 'Rejected'
+              }">{{ step.status }}</span>
+            </div>
+
+            <div class="step-details card-sub p-12 mt-8">
+              <div class="detail-row" *ngIf="step.timestamp && step.status !== 'Pending'">
+                <span class="material-icons-outlined" style="font-size: 16px;">calendar_today</span>
+                <span class="detail-text">{{ step.timestamp | date:'mediumDate' }}</span>
+              </div>
+              <p class="step-message mt-8" *ngIf="step.isCurrent">This stage is currently awaiting action...</p>
+              <p class="step-comments mt-8 italic" *ngIf="step.comments && step.status !== 'Pending'">"{{ step.comments }}"</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-overlay" *ngIf="loadingProgress">
+          <div class="spinner"></div>
+          <p>Fetching real-time progress...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer p-24 text-right">
+      <button class="btn-primary" (click)="closeTrackingModal()">Close Tracker</button>
+    </div>
+  </div>
+</div>
+
+<!-- Request Details Modal -->
+<div class="modal-overlay" *ngIf="showDetailsModal" (click)="closeDetailsModal()">
+  <div class="modal-content details-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="title-wrap">
+        <h3 class="modal-title">Request Details</h3>
+        <span class="badge type-badge">{{ selectedRequest?.requestType || 'New Asset Request' }}</span>
+      </div>
+      <button class="btn-close" (click)="closeDetailsModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body p-0">
+      <div class="details-grid">
+        <!-- Main Info Section -->
+        <div class="info-section">
+          <div class="section-header">
+            <span class="material-icons-outlined">info</span>
+            <h4>General Information</h4>
+          </div>
+          <div class="info-content">
+            <div class="info-item">
+              <label>Request ID</label>
+              <p class="value primary-val">{{ selectedRequest?.requestId }}</p>
+            </div>
+            <div class="info-item">
+              <label>Requester Name</label>
+              <p class="value">{{ selectedRequest?.userName }}</p>
+            </div>
+            <div class="info-item">
+              <label>Requester Email</label>
+              <p class="value">{{ selectedRequest?.userEmail }}</p>
+            </div>
+            <div class="info-item">
+              <label>Request Date</label>
+              <p class="value">{{ selectedRequest?.createdAt | date:'medium' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asset Info Section -->
+        <div class="info-section">
+          <div class="section-header">
+            <span class="material-icons-outlined">inventory_2</span>
+            <h4>Asset Details</h4>
+          </div>
+          <div class="info-content">
+            <div class="info-item">
+              <label>Asset Category</label>
+              <p class="value">{{ selectedRequest?.assetType }}</p>
+            </div>
+            <div class="info-item">
+              <label>Subcategory / Asset</label>
+              <p class="value">{{ formatSubcategory(selectedRequest?.subCategory || '') }}</p>
+            </div>
+            <div class="info-item">
+              <label>Urgency</label>
+              <p class="value">
+                <span class="urgency-indicator" [attr.data-urgency]="selectedRequest?.urgency?.toLowerCase()"></span>
+                {{ selectedRequest?.urgency || 'Normal' }}
+              </p>
+            </div>
+            <div class="info-item">
+              <label>Status</label>
+              <p class="value">
+                <span class="badge" [ngClass]="getStatusClass(selectedRequest?.status || '')">
+                  {{ getStatusLabel(selectedRequest?.status || '') }}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reason Section (Full Width) -->
+        <div class="info-section full-width">
+          <div class="section-header">
+            <span class="material-icons-outlined">description</span>
+            <h4>Reason for Request</h4>
+          </div>
+          <div class="info-content">
+            <p class="reason-text">{{ selectedRequest?.reason || 'No reason provided.' }}</p>
+          </div>
+        </div>
+
+        <!-- Attachments Section -->
+        <div class="info-section full-width border-0" *ngIf="selectedRequest?.emailApproval">
+          <div class="section-header">
+            <span class="material-icons-outlined">attachment</span>
+            <h4>Attachments</h4>
+          </div>
+          <div class="info-content">
+            <div class="attachment-box" (click)="downloadDocument(selectedRequest?.document || '', selectedRequest?.requestId)">
+              <span class="material-icons-outlined">insert_drive_file</span>
+              <div class="file-info">
+                <span class="file-name">{{ extractFileName(selectedRequest?.document || '') }}</span>
+                <span class="file-action">Click to view document</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-primary" (click)="closeDetailsModal()">Close Details</button>
+    </div>
+  </div>
+</div>

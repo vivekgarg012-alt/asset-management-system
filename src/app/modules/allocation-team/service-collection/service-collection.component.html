@@ -1,0 +1,269 @@
+<div class="service-page" [class.drawer-open]="drawerOpen">
+  <div class="main-content">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h2>Service Collection</h2>
+        <p>Collect assets for service and manage your assignments</p>
+      </div>
+      <div class="header-stats">
+        <div class="stat-pill pending-pill">
+          <span class="material-icons">assignment</span>
+          <span>{{ pendingApprovals.length }} Pending Collection</span>
+        </div>
+        <div class="stat-pill serviced-pill">
+          <span class="material-icons">history</span>
+          <span>{{ allMyApprovals.length }} Completed</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-navigation">
+      <button [class.active]="activeTab === 'pending'" (click)="switchTab('pending')">
+        <span class="material-icons">pending_actions</span>
+        Pending Collection
+        <span class="tab-count" *ngIf="pendingApprovals.length > 0">{{ pendingApprovals.length }}</span>
+      </button>
+      <button [class.active]="activeTab === 'history'" (click)="switchTab('history')">
+        <span class="material-icons">history</span>
+        My History
+        <span class="tab-count" *ngIf="allMyApprovals.length > 0">{{ allMyApprovals.length }}</span>
+      </button>
+    </div>
+
+    <!-- ─── Pending Collection Tab ──────────────────────────────────────── -->
+    <div class="table-wrapper" *ngIf="!isLoading && activeTab === 'pending'">
+      <table>
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Employee</th>
+            <th>Asset</th>
+            <th>Issue</th>
+            <th>Urgency</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of paginatedData" [class.row-selected]="selectedItem?.approval_id === item.approval_id">
+            <td class="ticket-id">{{ item.service_request_id }}</td>
+            <td>
+              <div class="user-cell">
+                <div class="avatar">{{ (item.requester_name || '?').charAt(0) }}</div>
+                <span>{{ item.requester_name || 'Unknown' }}</span>
+              </div>
+            </td>
+            <td>{{ item.asset_name || item.asset_id }}</td>
+            <td class="issue-cell">{{ (item.issue_description || '').substring(0, 40) }}{{ (item.issue_description || '').length > 40 ? '...' : '' }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="{
+                'status-pending': item.urgency === 'High',
+                'status-inprogress': item.urgency === 'Medium',
+                'status-default': item.urgency === 'Low'
+              }">{{ item.urgency }}</span>
+            </td>
+            <td>{{ item.created_at | date:'mediumDate' }}</td>
+            <td>
+              <div class="action-group">
+                <button class="btn-view" (click)="openDrawer(item)">
+                  <span class="material-icons">visibility</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="currentData.length === 0">
+            <td colspan="7" class="no-data">
+              <span class="material-icons">inbox</span>
+              <p>No pending service collections assigned to you.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── History Tab ─────────────────────────────────────────────────── -->
+    <div class="table-wrapper" *ngIf="!isLoading && activeTab === 'history'">
+      <table>
+        <thead>
+          <tr>
+            <th>Approval ID</th>
+            <th>Request ID</th>
+            <th>Stage</th>
+            <th>Status</th>
+            <th>Remarks</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of paginatedData">
+            <td class="ticket-id">{{ item.approval_id }}</td>
+            <td class="ticket-id">{{ item.service_request_id }}</td>
+            <td>
+              <span class="stage-badge" [ngClass]="'stage-' + (item.stage || '').toLowerCase()">
+                {{ getStageLabel(item.stage) }}
+              </span>
+            </td>
+            <td><span class="status-badge" [ngClass]="getStatusClass(item.status)">{{ item.status }}</span></td>
+            <td class="issue-cell">{{ item.remarks || '-' }}</td>
+            <td>{{ item.action_date | date:'mediumDate' }}</td>
+            <td>
+              <div class="action-group">
+                <button class="btn-view" (click)="openDrawer(item)">
+                  <span class="material-icons">visibility</span>
+                  Details
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="currentData.length === 0">
+            <td colspan="7" class="no-data">
+              <span class="material-icons">history</span>
+              <p>No collection history yet.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" *ngIf="!isLoading && currentData.length > pageSize">
+      <div class="pagination-info">
+        Showing <strong>{{ (currentPage - 1) * pageSize + 1 }}</strong> -
+        <strong>{{ (currentPage * pageSize > currentData.length) ? currentData.length : (currentPage * pageSize) }}</strong>
+        of <strong>{{ currentData.length }}</strong>
+      </div>
+      <div class="pagination-controls">
+        <button class="page-nav-btn" [disabled]="currentPage === 1" (click)="prevPage()">
+          <span class="material-icons">chevron_left</span>
+        </button>
+        <button *ngFor="let page of pageNumbers" class="page-num-btn" [class.active]="page === currentPage"
+          (click)="setPage(page)">{{ page }}</button>
+        <button class="page-nav-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">
+          <span class="material-icons">chevron_right</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state" *ngIf="isLoading">
+      <div class="spinner"></div>
+      <p>Loading service collections...</p>
+    </div>
+
+    <!-- Error -->
+    <div class="error-state" *ngIf="!isLoading && loadError">
+      <span class="material-icons">error_outline</span>
+      <p>{{ loadError }}</p>
+      <button class="btn btn-primary" (click)="loadAllData()">Retry</button>
+    </div>
+  </div>
+
+  <!-- ─── Details Drawer ───────────────────────────────────────────────── -->
+  <div class="drawer-overlay" *ngIf="drawerOpen" (click)="closeDrawer()"></div>
+  <div class="details-drawer" [class.open]="drawerOpen">
+    <div class="drawer-header" *ngIf="selectedItem">
+      <div>
+        <span class="drawer-label">Service Collection Details</span>
+        <h3>{{ selectedItem.service_request_id }}</h3>
+      </div>
+      <button class="close-btn" (click)="closeDrawer()">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+
+    <div class="drawer-body" *ngIf="selectedItem">
+      <div class="status-banner" [ngClass]="getStatusClass(selectedItem.approval_status || selectedItem.request_status)">
+        <span class="material-icons">info</span>
+        {{ selectedItem.approval_status || selectedItem.request_status || 'Pending Collection' }}
+      </div>
+
+      <div class="detail-section">
+        <h4>Request Info</h4>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Request ID</span>
+            <span class="detail-value mono">{{ selectedItem.service_request_id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Employee</span>
+            <span class="detail-value">{{ selectedItem.requester_name }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Urgency</span>
+            <span class="detail-value">{{ selectedItem.urgency }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Date</span>
+            <span class="detail-value">{{ selectedItem.created_at | date:'longDate' }}</span>
+          </div>
+          <div class="detail-item" *ngIf="selectedItem.needs_temp_asset">
+            <span class="detail-label">Temp Asset Needed</span>
+            <span class="detail-value">Yes</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Asset Info</h4>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Asset ID</span>
+            <span class="detail-value mono">{{ selectedItem.asset_id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Asset Name</span>
+            <span class="detail-value">{{ selectedItem.asset_name }}</span>
+          </div>
+          <div class="detail-item" *ngIf="selectedItem.asset_serial">
+            <span class="detail-label">Serial Number</span>
+            <span class="detail-value mono">{{ selectedItem.asset_serial }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Issue Description</h4>
+        <p class="issue-text">{{ selectedItem.issue_description }}</p>
+      </div>
+
+      <div class="detail-section remarks-history-section">
+        <h4>Remarks History</h4>
+        <div class="history-loading" *ngIf="loadingChain">
+          <span class="spinner-sm"></span>
+          <span>Loading remarks...</span>
+        </div>
+        <div class="remarks-history-list" *ngIf="!loadingChain">
+          <div class="remarks-history-card" *ngFor="let entry of getRemarksHistory()">
+            <div class="remarks-source">
+              <span class="material-icons">person</span>
+              <span>{{ entry.source }}</span>
+            </div>
+            <p>"{{ entry.text }}"</p>
+            <span class="remarks-date" *ngIf="entry.date">{{ entry.date | date:'dd MMM yyyy, hh:mm a' }}</span>
+          </div>
+          <p class="empty-history" *ngIf="getRemarksHistory().length === 0">No remarks added yet.</p>
+        </div>
+      </div>
+
+      <div class="remarks-section" *ngIf="selectedItem.approval_status === 'Pending'">
+        <label for="actionRemarks">Remarks <span class="hint">(mandatory for rejection)</span></label>
+        <textarea id="actionRemarks" [(ngModel)]="actionRemarks"
+          placeholder="Enter collection remarks..." class="remarks-textarea"></textarea>
+      </div>
+
+      <div class="drawer-actions" *ngIf="selectedItem.approval_status === 'Pending'">
+        <button class="drawer-btn-allocate" (click)="approveCollection(selectedItem)" [disabled]="isSaving">
+          <span class="material-icons">check_circle</span>
+          Confirm Collection
+        </button>
+        <button class="drawer-btn-reject" (click)="rejectCollection(selectedItem)" [disabled]="isSaving">
+          <span class="material-icons">cancel</span>
+          Reject
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,70 @@
+<div class="dashboard-container">
+  <div class="grid grid-3 gap-24 mb-24">
+    <app-stat-card label="Total Users" [value]="userStats.total" icon="group" color="blue"></app-stat-card>
+    <app-stat-card label="Total Assets" [value]="assetStats.total" icon="inventory_2" color="green"></app-stat-card>
+    <app-stat-card label="Active Projects" [value]="activeProjects" icon="folder_open" color="purple"></app-stat-card>
+  </div>
+
+  <div class="grid grid-2 gap-24 mb-24 animate-slide-up">
+    <div class="card chart-card">
+      <div class="card-header border-0">
+        <h3>Asset Status</h3>
+        <p class="chart-subtitle">{{ assetStatusSubtitle }}</p>
+      </div>
+      <div class="card-body chart-body">
+        <canvas
+          baseChart
+          [type]="assetStatusChartType"
+          [data]="assetStatusChartData"
+          [options]="assetStatusChartOptions">
+        </canvas>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-header border-0">
+        <h3>Request Trend</h3>
+        <p class="chart-subtitle">Requests raised per month</p>
+      </div>
+      <div class="card-body chart-body">
+        <canvas
+          baseChart
+          [type]="requestTrendChartType"
+          [data]="requestTrendChartData"
+          [options]="requestTrendChartOptions">
+        </canvas>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-header border-0">
+        <h3>Asset Sub Categories</h3>
+        <p class="chart-subtitle">{{ assetSubCategorySubtitle }}</p>
+      </div>
+      <div class="card-body chart-body">
+        <canvas
+          baseChart
+          [type]="assetCategoryChartType"
+          [data]="assetCategoryChartData"
+          [options]="assetCategoryChartOptions">
+        </canvas>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-header border-0">
+        <h3>User Roles</h3>
+        <p class="chart-subtitle">Administrator / AM / TL / Employee</p>
+      </div>
+      <div class="card-body chart-body">
+        <canvas
+          baseChart
+          [type]="userRoleChartType"
+          [data]="userRoleChartData"
+          [options]="userRoleChartOptions">
+        </canvas>
+      </div>
+    </div>
+  </div>
+
+</div>

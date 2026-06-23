@@ -1,0 +1,99 @@
+<nav class="navbar" [class.scrolled]="isScrolled">
+  <div class="container navbar-content">
+    <div class="logo">
+      <h1 class="logo-text">ADNATE<span>AMS</span></h1>
+    </div>
+    <!-- <div class="nav-links">
+      <a href="javascript:void(0)" class="nav-link">Home</a>
+      <a href="javascript:void(0)" class="nav-link">Features</a>
+      <a href="javascript:void(0)" class="nav-link">Solutions</a>
+      <a href="javascript:void(0)" class="nav-link">Resources</a>
+      <a href="javascript:void(0)" class="nav-link">Contact</a>
+    </div> -->
+    <div class="nav-actions">
+      <button class="btn btn-login-nav" (click)="navigateToLogin()">
+        <span class="material-icons-outlined">login</span>
+        Log In
+      </button>
+      <!-- <button class="btn btn-accent btn-signup" (click)="navigateToRegister()">Sign Up</button> -->
+    </div>
+  </div>
+</nav>
+
+<section class="hero-section">
+  <div class="container hero-content">
+    <div class="hero-text-side animate-slide-in">
+      <h1 class="hero-title">
+        The smartest way to manage <span>enterprise assets</span>
+      </h1>
+      <p class="hero-subtitle">
+        Empower your organization with real-time tracking, seamless allocation, and lifecycle management of your hardare
+        and software resources.
+      </p>
+      <div class="hero-ctas">
+        <button class="btn btn-primary btn-lg" (click)="navigateToLogin()">Get Started</button>
+        <!-- <button class="btn btn-outline btn-lg" (click)="navigateToRegister()">Request Access</button> -->
+      </div>
+    </div>
+
+    <div class="hero-visual-side animate-scale-in">
+      <div class="image-wrapper">
+        <img src="assets/images/hero-home.png" alt="Asset Management Dashboard" class="hero-img">
+
+        <!-- Floating Status Cards -->
+        <div class="status-card card-tl animate-pulse" style="animation-delay: 0.2s">
+          <div class="icon-wrap blue">
+            <span class="material-icons-outlined">verified</span>
+          </div>
+          <div class="status-info">
+            <span class="status-label">99.9% Accuracy</span>
+            <span class="status-sub">Inventory Precision</span>
+          </div>
+        </div>
+
+        <div class="status-card card-br animate-pulse" style="animation-delay: 1s">
+          <div class="icon-wrap green">
+            <span class="material-icons-outlined">bolt</span>
+          </div>
+          <div class="status-info">
+            <span class="status-label">Fast Allocation</span>
+            <span class="status-sub">7-hour avg response</span>
+          </div>
+        </div>
+
+        <div class="status-card card-tr animate-pulse" style="animation-delay: 2s">
+          <div class="icon-wrap amber">
+            <span class="material-icons-outlined">trending_up</span>
+          </div>
+          <div class="status-info">
+            <span class="status-label">Asset ROI</span>
+            <span class="status-sub">+45% Utilization</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features-preview container">
+  <div class="section-badge">CORE FEATURES</div>
+  <h2 class="section-title">Everything you need in one place</h2>
+
+  <div class="features-grid grid-3 mt-24">
+    <div class="feature-card animate-slide-up" style="animation-delay: 0.1s">
+      <span class="material-icons-outlined feat-icon color-blue">account_tree</span>
+      <h3>Lifecycle Tracking</h3>
+      <p>From procurement to disposal, track every stage of an asset's journey with full audit history.</p>
+    </div>
+    <div class="feature-card animate-slide-up" style="animation-delay: 0.2s">
+      <span class="material-icons-outlined feat-icon color-green">assignment_turned_in</span>
+      <h3>Seamless Allocation</h3>
+      <p>Automated workflows for asset requests and ticket-based allocation for employee onboarding.</p>
+    </div>
+    <div class="feature-card animate-slide-up" style="animation-delay: 0.3s">
+      <span class="material-icons-outlined feat-icon color-purple">analytics</span>
+      <h3>Advanced Reporting</h3>
+      <p>Customizable dashboards with deep insights into asset utilization, health, and depreciation.</p>
+    </div>
+  </div>
+</section>

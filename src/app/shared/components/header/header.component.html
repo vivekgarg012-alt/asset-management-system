@@ -1,0 +1,51 @@
+<header class="header">
+  <div class="header-left">
+    <div *ngIf="isDashboard">
+      <h2 class="page-title">Welcome Back</h2>
+      <p class="subtitle">Track your assets and view system status.</p>
+    </div>
+  </div>
+  
+  <div class="header-right">
+    <div class="user-corner-menu" *ngIf="currentUser">
+      <div class="user-profile-trigger">
+        <div class="user-info-display">
+          <span class="profile-name">{{currentUser.name}}</span>
+          <span class="profile-role">{{currentUser.role}}</span>
+        </div>
+        <div class="user-avatar-circle">
+          <span class="material-icons-outlined">account_circle</span>
+        </div>
+      </div>
+      <div class="user-hover-card">
+        <div class="hover-avatar">
+          <span class="material-icons-outlined">person</span>
+        </div>
+        <h5 style="margin: 8px 0 4px; font-size: 16px; color: #333;">{{currentUser.name || currentUser.firstName}}</h5>
+        <span class="badge badge-info" style="margin-bottom: 12px; font-size: 11px; padding: 4px 8px; background: #e0f2fe; color: #0369a1; border-radius: 12px; border: 1px solid #bae6fd;">
+          {{currentUser.role}}
+        </span>
+        <div class="hover-info-row">
+          <span class="material-icons-outlined" style="font-size: 16px;">badge</span>
+          <span>
+            <strong>Emp Code:</strong> {{currentUser.id}} 
+            <span *ngIf="currentUser.assetTypeName" style="color: #6366f1; font-weight: 600; margin-left: 4px;">({{currentUser.assetTypeName}})</span>
+            <span *ngIf="!currentUser.assetTypeName && currentUser.assetTypeId" style="color: #94a3b8; font-size: 11px; font-style: italic; margin-left: 4px;">(Resolving type...)</span>
+          </span>
+        </div>
+        <div class="hover-info-row" *ngIf="currentUser.projectName">
+          <span class="material-icons-outlined" style="font-size: 16px;">work</span>
+          <span><strong>Project:</strong> {{currentUser.projectName}}</span>
+        </div>
+        <div class="hover-info-row" *ngIf="currentUser.teamLeadName">
+          <span class="material-icons-outlined" style="font-size: 16px;">supervisor_account</span>
+          <span><strong>Team Lead:</strong> {{currentUser.teamLeadId || currentUser.teamLeadName}}</span>
+        </div>
+        <div class="hover-info-row" *ngIf="currentUser.team && currentUser.team !== 'General' && currentUser.team !== currentUser.projectName">
+          <span class="material-icons-outlined" style="font-size: 16px;">groups</span>
+          <span><strong>Team:</strong> {{currentUser.team}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>

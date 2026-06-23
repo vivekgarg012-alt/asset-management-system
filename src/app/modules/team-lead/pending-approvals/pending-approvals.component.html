@@ -1,0 +1,188 @@
+<div class="card animate-slide-up m-24" style="min-height: 400px; position: relative;">
+  <!-- Loading State -->
+  <div class="loading-overlay-container" *ngIf="isLoading">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <h4>Loading pending approvals...</h4>
+      <p class="text-muted">Fetching latest requests for your project</p>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading">
+    <div class="card-header border-0" style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0;">Approval History ({{pendingRequests.length}})</h3>
+      <div class="search-box">
+        <input type="text" placeholder="Search history..." (input)="onSearch($event)" 
+               style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 250px;">
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th><span class="material-icons-outlined">tag</span> Request No</th>
+              <th><span class="material-icons-outlined">person</span>Name</th>
+              <th><span class="material-icons-outlined">category</span> Category</th>
+              <th><span class="material-icons-outlined">devices</span> Asset Name</th>
+              <th><span class="material-icons-outlined">info</span> Overall Status</th>
+              <th><span class="material-icons-outlined">pending_actions</span> Your Action</th>
+              <th><span class="material-icons-outlined">event</span> Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let req of paginatedRequests" 
+                (click)="selectRequest(req)"
+                class="clickable-row">
+              <td><strong>{{req.requestNumber}}</strong></td>
+              <td>{{req.requesterName}}</td>
+              <td>{{req.category}}</td>
+              <td>{{req.assetType}}</td>
+              <td>
+                <span class="badge" [ngClass]="{ 'badge-warning': req.reqStatus === 'Pending' || req.reqStatus === 'In Progress', 'badge-success': req.reqStatus === 'Approved' || req.reqStatus === 'Completed', 'badge-danger': req.reqStatus === 'Rejected' || req.reqStatus === 'Cancelled' }">{{req.reqStatus}}</span>
+              </td>
+              <td>
+                <span class="badge" [ngClass]="{ 'badge-info': req.status === 'Pending', 'badge-success': req.status === 'Approved', 'badge-danger': req.status === 'Rejected', 'badge-secondary': !req.status }">{{req.status || 'N/A'}}</span>
+              </td>
+              <td>{{req.requestDate | date:'mediumDate'}}</td>
+            </tr>
+            <tr *ngIf="pendingRequests.length === 0">
+              <td colspan="7" class="text-center text-muted m-24 p-24">
+                No request history found.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination-controls" *ngIf="totalPages > 1">
+        <button [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">Previous</button>
+        <span>Page {{currentPage}} of {{totalPages}}</span>
+        <button [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">Next</button>
+      </div>
+    </div>
+  </ng-container>
+</div>
+
+<!-- Modal Popup for Details -->
+<div class="modal-overlay" *ngIf="selectedRequest" (click)="cancelSelection()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <h4 style="margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 12px;">Request Details - {{selectedRequest.requestNumber}}</h4>
+    
+    <!-- Tracker Section -->
+    <div class="tracker-container mb-24" style="padding: 16px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+      <!-- Overall Progress -->
+      <div class="progress-section">
+        <div class="progress-header">
+          <span class="progress-label">OVERALL COMPLETION</span>
+          <span class="progress-percentage">{{ overallProgress }}%</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" [style.width.%]="overallProgress"></div>
+        </div>
+      </div>
+
+      <!-- Tracking Timeline -->
+      <div class="tracking-timeline mt-20" [class.loading]="loadingProgress" style="margin-top: 20px;">
+        <div class="timeline-step" *ngFor="let step of trackingSteps; let last = last"
+             [ngClass]="getApprovalStageClass(step.status)">
+          
+          <div class="step-indicator">
+            <div class="step-icon">
+              <span class="material-icons-outlined" [class.spinning]="step.isCurrent && step.status === 'Pending'">
+                {{ getApprovalIcon(step.status) }}
+              </span>
+            </div>
+            <div class="step-line" *ngIf="!last"></div>
+          </div>
+
+          <div class="step-content">
+            <div class="step-header">
+              <div class="step-name-block">
+                <h4 class="step-name">{{ step.name }}</h4>
+                <span class="step-role-label">{{ step.roleName }}</span>
+              </div>
+              <span class="step-status">{{ step.status }}</span>
+            </div>
+
+            <div class="step-details" *ngIf="step.status !== 'Pending' || step.isCurrent">
+              <div class="detail-row" *ngIf="step.timestamp">
+                <span class="material-icons-outlined">calendar_today</span>
+                <span class="detail-text">{{ step.timestamp | date:'medium' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="material-icons-outlined">chat_bubble_outline</span>
+                <span class="detail-text italic" *ngIf="step.comments">"{{ step.comments }}"</span>
+                <span class="detail-text" *ngIf="!step.comments">-</span>
+              </div>
+              <p class="step-message mt-4" *ngIf="step.isCurrent && !step.timestamp">Awaiting action at this stage...</p>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="loadingProgress" class="text-center p-16">
+          <div class="spinner-small" style="width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 2s linear infinite; margin: 0 auto;"></div>
+          <p class="text-xs text-muted mt-8">Fetching real-time progress...</p>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-2 gap-16" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Requester Name</label>
+        <input type="text" [value]="selectedRequest.requesterName" readonly 
+               style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Category</label>
+        <input type="text" [value]="selectedRequest.assetType" readonly 
+               style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Asset Name</label>
+        <input type="text" [value]="selectedRequest.category" readonly 
+               style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Urgency</label>
+        <input type="text" [value]="selectedRequest.urgency" readonly 
+               style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; grid-column: span 2;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Reason</label>
+        <textarea type="text" [value]="selectedRequest.justification" readonly 
+               style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box; resize: vertical;" rows="3"></textarea>
+      </div>
+
+      <!-- Attachment section -->
+      <div style="display: flex; flex-direction: column; gap: 8px; grid-column: span 2;" *ngIf="selectedRequest.document">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Attachment</label>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #f1f5f9; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <span class="material-icons-outlined" style="color: #64748b; font-size: 20px;">description</span>
+          <span style="font-size: 14px; color: #1e293b; font-family: monospace; flex: 1;" [title]="selectedRequest.document">{{ extractFileName(selectedRequest.document) }}</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-icon btn-outline" style="padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; cursor: pointer;"
+                    (click)="viewDocument(selectedRequest.document)" title="View Document">
+              <span class="material-icons-outlined" style="font-size: 18px; color: #475569;">visibility</span>
+            </button>
+            <button class="btn btn-icon btn-outline" style="padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; cursor: pointer;"
+                    (click)="downloadDocument(selectedRequest.document)" title="Download Document">
+              <span class="material-icons-outlined" style="font-size: 18px; color: #475569;">download</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Remarks section -->
+      <div style="display: flex; flex-direction: column; gap: 8px; grid-column: span 2;" *ngIf="selectedRequest.remarks">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Remarks</label>
+        <div style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box; min-height: 40px;">
+          {{selectedRequest.remarks}}
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid #eee;">
+      <button (click)="cancelSelection()" 
+              style="padding: 10px 18px; border: 1px solid #ddd; background: white; color: #333; border-radius: 4px; cursor: pointer; font-weight: 500;">Close</button>
+    </div>
+  </div>
+</div>
