@@ -1,0 +1,778 @@
+<div class="service-page" [class.drawer-open]="drawerOpen">
+  <div class="main-content">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h2>Service & Maintenance</h2>
+        <p>Manage service requests, approvals, and asset handovers</p>
+      </div>
+      <div class="header-stats">
+        <div class="stat-pill pending-pill">
+          <span class="material-icons">build</span>
+          <span>{{ filteredPending.length }} Pending</span>
+        </div>
+        <div class="stat-pill onservice-pill">
+          <span class="material-icons">engineering</span>
+          <span>{{ onServiceRequests.length }} On Service</span>
+        </div>
+        <div class="stat-pill serviced-pill">
+          <span class="material-icons">check_circle</span>
+          <span>{{ servicedRequests.length }} Serviced</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-navigation">
+      <button [class.active]="activeTab === 'pending'" (click)="switchTab('pending')">
+        <span class="material-icons">pending_actions</span>
+        Pending Approvals
+        <span class="tab-count" *ngIf="filteredPending.length > 0">{{ filteredPending.length }}</span>
+      </button>
+      <button [class.active]="activeTab === 'approved'" (click)="switchTab('approved')">
+        <span class="material-icons">history</span>
+        Approval History
+        <span class="tab-count" *ngIf="approvedHistory.length > 0">{{ approvedHistory.length }}</span>
+      </button>
+      <button [class.active]="activeTab === 'onservice'" (click)="switchTab('onservice')">
+        <span class="material-icons">engineering</span>
+        On Service
+        <span class="tab-count" *ngIf="onServiceRequests.length > 0">{{ onServiceRequests.length }}</span>
+      </button>
+      <button [class.active]="activeTab === 'serviced'" (click)="switchTab('serviced')">
+        <span class="material-icons">done_all</span>
+        Serviced
+        <span class="tab-count" *ngIf="servicedRequests.length > 0">{{ servicedRequests.length }}</span>
+      </button>
+      <button [class.active]="activeTab === 'history'" (click)="switchTab('history')">
+        <span class="material-icons">manage_search</span>
+        Service History
+        <span class="tab-count" *ngIf="serviceHistoryRows.length > 0">{{ serviceHistoryRows.length }}</span>
+      </button>
+      <button [class.active]="activeTab === 'closed'" (click)="switchTab('closed')">
+        <span class="material-icons">inventory</span>
+        Closed / Rejected
+      </button>
+    </div>
+
+    <!-- ─── Pending Approvals Tab ───────────────────────────────────────── -->
+    <div class="table-wrapper" *ngIf="!isLoading && activeTab === 'pending'">
+      <table>
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Employee</th>
+            <th>Asset</th>
+            <th>Stage</th>
+            <th>Issue</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of paginatedData" [class.row-selected]="selectedItem?.approval_id === item.approval_id">
+            <td class="ticket-id">{{ item.service_request_id }}</td>
+            <td>
+              <div class="user-cell">
+                <div class="avatar">{{ (item.requester_name || '?').charAt(0) }}</div>
+                <span>{{ item.requester_name || 'Unknown' }}</span>
+              </div>
+            </td>
+            <td>{{ item.asset_name || item.asset_id }}</td>
+            <td>
+              <span class="stage-badge" [ngClass]="'stage-' + (item.stage || '').toLowerCase()">
+                {{ getStageLabel(item.stage) }}
+              </span>
+            </td>
+            <td class="issue-cell">{{ (item.issue_description || '').substring(0, 40) }}{{ (item.issue_description || '').length > 40 ? '...' : '' }}</td>
+            <td>{{ item.created_at | date:'mediumDate' }}</td>
+            <td>
+              <div class="action-group">
+                <button class="btn-view" (click)="openDrawer(item)">
+                  <span class="material-icons">visibility</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="currentData.length === 0">
+            <td colspan="7" class="no-data">
+              <span class="material-icons">inbox</span>
+              <p>No pending service approvals.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── Approval History Tab ────────────────────────────────────────── -->
+    <div class="table-wrapper" *ngIf="!isLoading && activeTab === 'approved'">
+      <table>
+        <thead>
+          <tr>
+            <th>Approval ID</th>
+            <th>Request ID</th>
+            <th>Stage</th>
+            <th>Status</th>
+            <th>Remarks</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of paginatedData">
+            <td class="ticket-id">{{ item.approval_id }}</td>
+            <td class="ticket-id">{{ item.service_request_id }}</td>
+            <td>
+              <span class="stage-badge" [ngClass]="'stage-' + (item.stage || '').toLowerCase()">
+                {{ getStageLabel(item.stage) }}
+              </span>
+            </td>
+            <td><span class="status-badge" [ngClass]="getStatusClass(item.status)">{{ item.status }}</span></td>
+            <td class="issue-cell">{{ item.remarks || '-' }}</td>
+            <td>{{ item.action_date | date:'mediumDate' }}</td>
+            <td>
+              <div class="action-group">
+                <button class="btn-view" (click)="openDrawer(item)">
+                  <span class="material-icons">visibility</span>
+                  Details
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="currentData.length === 0">
+            <td colspan="7" class="no-data">
+              <span class="material-icons">history</span>
+              <p>No approval history yet.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── On Service Tab ──────────────────────────────────────────────── -->
+    <div class="table-wrapper" *ngIf="!isLoading && activeTab === 'onservice'">
+      <table>
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Asset ID</th>
+            <th>Asset Name</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of paginatedData">
+            <td class="ticket-id">{{ item.service_request_id }}</td>
+            <td>{{ item.asset_id }}</td>
+            <td>{{ item.temp1 || item.asset_id }}</td>
+            <td><span class="status-badge" [ngClass]="getStatusClass(item.status)">{{ item.status }}</span></td>
+            <td>{{ item.created_at | date:'mediumDate' }}</td>
+            <td>
+              <div class="action-group">
+                <button class="btn-action btn-mark-serviced" (click)="openServicedModal(item)" [disabled]="isSaving">
+                  <span class="material-icons">build_circle</span>
+                  Mark Serviced
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="currentData.length === 0">
+            <td colspan="6" class="no-data">
+              <span class="material-icons">inbox</span>
+              <p>No assets currently on service.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── Serviced Tab ────────────────────────────────────────────────── -->
+    <div class="table-wrapper" *ngIf="!isLoading && activeTab === 'serviced'">
+      <table>
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Original Asset</th>
+            <th>Asset Name</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of paginatedData">
+            <td class="ticket-id">{{ item.service_request_id }}</td>
+            <td class="ticket-id">{{ item.asset_id }}</td>
+            <td>{{ item.temp1 || item.asset_id }}</td>
+            <td><span class="status-badge" [ngClass]="getStatusClass(item.status)">{{ item.status }}</span></td>
+            <td>{{ item.created_at | date:'mediumDate' }}</td>
+            <td>
+              <div class="action-group">
+                <button class="btn-view" (click)="openServicedDrawer(item)">
+                  <span class="material-icons">visibility</span>
+                  View Details
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="currentData.length === 0">
+            <td colspan="6" class="no-data">
+              <span class="material-icons">inbox</span>
+              <p>No serviced assets waiting for handover.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── Closed / Rejected Tab ───────────────────────────────────────── -->
+    <div class="history-panel" *ngIf="!isLoading && activeTab === 'history'">
+      <div class="history-filter-bar">
+        <div class="filter-field">
+          <label>Employee ID</label>
+          <input type="text" [(ngModel)]="serviceHistoryFilters.employee_id" placeholder="Enter user ID">
+        </div>
+        <div class="filter-field">
+          <label>Asset ID</label>
+          <input type="text" [(ngModel)]="serviceHistoryFilters.asset_id" placeholder="Enter asset ID">
+        </div>
+        <div class="filter-field">
+          <label>Request ID</label>
+          <input type="text" [(ngModel)]="serviceHistoryFilters.service_request_id" placeholder="Enter request ID">
+        </div>
+        <div class="filter-field">
+          <label>Status</label>
+          <select [(ngModel)]="serviceHistoryFilters.status">
+            <option value="">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="MoveToAllocationTeam">Move To Allocation</option>
+            <option value="CollectedByTeam">Collected By Team</option>
+            <option value="OnService">On Service</option>
+            <option value="Serviced">Serviced</option>
+            <option value="Closed">Closed</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>From</label>
+          <input type="date" [(ngModel)]="serviceHistoryFilters.from_date">
+        </div>
+        <div class="filter-field">
+          <label>To</label>
+          <input type="date" [(ngModel)]="serviceHistoryFilters.to_date">
+        </div>
+        <div class="filter-actions">
+          <button class="btn-filter-primary" (click)="loadServiceHistory()" [disabled]="serviceHistoryLoading">
+            <span class="material-icons">search</span>
+            Search
+          </button>
+          <button class="btn-filter-clear" (click)="resetServiceHistoryFilters()" [disabled]="serviceHistoryLoading">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Employee</th>
+              <th>Asset</th>
+              <th>Status Movement</th>
+              <th>Changed By</th>
+              <th>Service Details</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="serviceHistoryLoading">
+              <td colspan="7" class="no-data">
+                <span class="material-icons">sync</span>
+                <p>Loading service history...</p>
+              </td>
+            </tr>
+            <tr *ngFor="let item of paginatedData">
+              <td class="ticket-id">{{ item.service_request_id }}</td>
+              <td>
+                <div class="history-person">
+                  <strong>{{ item.employee_name || item.employee_id || 'Unknown' }}</strong>
+                  <span>{{ item.employee_email || item.employee_id }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="history-asset">
+                  <strong>{{ item.asset_name || item.asset_id }}</strong>
+                  <span class="mono">{{ item.asset_id }}</span>
+                  <small *ngIf="item.serial_number">{{ item.serial_number }}</small>
+                </div>
+              </td>
+              <td>
+                <div class="status-flow">
+                  <span class="status-badge" [ngClass]="getStatusClass(item.previous_status || 'Pending')">
+                    {{ item.previous_status || 'Created' }}
+                  </span>
+                  <span class="material-icons">arrow_forward</span>
+                  <span class="status-badge" [ngClass]="getStatusClass(getHistoryStatus(item))">
+                    {{ getHistoryStatus(item) }}
+                  </span>
+                </div>
+              </td>
+              <td>
+                <div class="history-person">
+                  <strong>{{ item.changed_by_name || item.changed_by || 'System' }}</strong>
+                  <span>{{ item.action_stage || 'Service Update' }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="history-service-details">
+                  <span *ngIf="item.serviced_by"><strong>Vendor:</strong> {{ item.serviced_by }}</span>
+                  <span *ngIf="item.service_cost"><strong>Cost:</strong> {{ item.service_cost }}</span>
+                  <span *ngIf="item.temp_asset_id"><strong>Temp:</strong> {{ item.temp_asset_name || item.temp_asset_id }}</span>
+                  <span *ngIf="item.expected_return_date"><strong>Return:</strong> {{ item.expected_return_date | date:'mediumDate' }}</span>
+                  <span class="history-remarks" *ngIf="item.history_remarks">{{ item.history_remarks }}</span>
+                  <span class="history-remarks" *ngIf="!item.history_remarks">{{ item.issue_description || '-' }}</span>
+                </div>
+              </td>
+              <td>{{ (item.changed_at || item.created_at) | date:'medium' }}</td>
+            </tr>
+            <tr *ngIf="!serviceHistoryLoading && currentData.length === 0">
+              <td colspan="7" class="no-data">
+                <span class="material-icons">manage_search</span>
+                <p>No service history found for these filters.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-wrapper" *ngIf="!isLoading && activeTab === 'closed'">
+      <table>
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Asset ID</th>
+            <th>Status</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of paginatedData">
+            <td class="ticket-id">{{ item.service_request_id }}</td>
+            <td>{{ item.asset_id }}</td>
+            <td><span class="status-badge" [ngClass]="getStatusClass(item.status)">{{ item.status }}</span></td>
+            <td>{{ item.created_at | date:'mediumDate' }}</td>
+          </tr>
+          <tr *ngIf="currentData.length === 0">
+            <td colspan="4" class="no-data">
+              <span class="material-icons">inbox</span>
+              <p>No closed or rejected service requests.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" *ngIf="!isLoading && currentData.length > pageSize">
+      <div class="pagination-info">
+        Showing <strong>{{ (currentPage - 1) * pageSize + 1 }}</strong> -
+        <strong>{{ (currentPage * pageSize > currentData.length) ? currentData.length : (currentPage * pageSize) }}</strong>
+        of <strong>{{ currentData.length }}</strong>
+      </div>
+      <div class="pagination-controls">
+        <button class="page-nav-btn" [disabled]="currentPage === 1" (click)="prevPage()">
+          <span class="material-icons">chevron_left</span>
+        </button>
+        <button *ngFor="let page of pageNumbers" class="page-num-btn" [class.active]="page === currentPage"
+          (click)="setPage(page)">{{ page }}</button>
+        <button class="page-nav-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">
+          <span class="material-icons">chevron_right</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state" *ngIf="isLoading">
+      <div class="spinner"></div>
+      <p>Loading service requests...</p>
+    </div>
+
+    <!-- Error -->
+    <div class="error-state" *ngIf="!isLoading && loadError">
+      <span class="material-icons">error_outline</span>
+      <p>{{ loadError }}</p>
+      <button class="btn btn-primary" (click)="loadAllData()">Retry</button>
+    </div>
+  </div>
+
+  <!-- ─── Details Drawer ───────────────────────────────────────────────── -->
+  <div class="drawer-overlay" *ngIf="drawerOpen" (click)="closeDrawer()"></div>
+  <div class="details-drawer" [class.open]="drawerOpen">
+    <div class="drawer-header drawer-header-premium" *ngIf="selectedItem">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="material-icons" style="font-size: 1.4rem; color: #fff; opacity: 0.9;">assignment</span>
+        <h3 style="color: #fff; margin: 0; font-size: 1.1rem; font-weight: 700;">Request Details</h3>
+      </div>
+      <button class="close-btn" (click)="closeDrawer()" style="color: #fff;">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+
+    <div class="drawer-body" *ngIf="selectedItem">
+
+      <!-- ── Asset Details Section ── -->
+      <div class="detail-section">
+        <h4 class="section-title-icon">
+          <span class="material-icons">inventory_2</span>
+          ASSET DETAILS
+        </h4>
+        <div class="detail-grid-cards">
+          <div class="detail-item-card">
+            <span class="detail-label-sm">ASSET NAME</span>
+            <span class="detail-value-lg">{{ selectedItem.asset_name || selectedItem.asset_id }}</span>
+          </div>
+          <div class="detail-item-card">
+            <span class="detail-label-sm">ASSET ID</span>
+            <span class="detail-value-lg mono">{{ selectedItem.asset_id }}</span>
+          </div>
+          <div class="detail-item-card" *ngIf="selectedItem.asset_serial">
+            <span class="detail-label-sm">SERIAL NUMBER</span>
+            <span class="detail-value-lg mono">{{ selectedItem.asset_serial }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Approval Chain Section ── -->
+      <div class="detail-section approval-chain-section">
+        <h4 class="section-title-icon">
+          <span class="material-icons">account_tree</span>
+          APPROVAL CHAIN
+        </h4>
+        <div class="chain-loading" *ngIf="loadingChain">
+          <div class="spinner-sm"></div>
+          <span>Loading approval chain...</span>
+        </div>
+        <div class="approval-chain-timeline" *ngIf="!loadingChain">
+          <!-- Always show all 3 stages -->
+          <ng-container *ngFor="let stage of [{key: 'STAGE_1_MANAGER', label: 'Asset Manager (Stage 1)'}, {key: 'STAGE_2_ALLOCATION', label: 'Allocation Team (Stage 2)'}, {key: 'STAGE_3_MANAGER_FINAL', label: 'Asset Manager Final (Stage 3)'}]; let last = last; let i = index">
+            <div class="chain-step" [ngClass]="getApprovalChainClass(getChainEntry(stage.key)?.status || 'Pending')">
+              <div class="chain-marker">
+                <div class="chain-dot">
+                  <span class="material-icons">{{ getApprovalChainIcon(getChainEntry(stage.key)?.status || 'Pending') }}</span>
+                </div>
+                <div class="chain-line" *ngIf="!last"></div>
+              </div>
+              <div class="chain-content">
+                <span class="chain-stage-name">{{ stage.label }}
+                  <span *ngIf="getChainEntry(stage.key)?.approver_name"> ({{ getChainEntry(stage.key)?.approver_name }})</span>
+                </span>
+                <span class="chain-status-badge" [ngClass]="getApprovalChainClass(getChainEntry(stage.key)?.status || 'Pending')">
+                  {{ getChainEntry(stage.key)?.status || 'Pending' }}
+                </span>
+                <div class="chain-meta" *ngIf="getChainEntry(stage.key)?.action_date">
+                  <span class="material-icons">schedule</span>
+                  {{ getChainEntry(stage.key)?.action_date | date:'dd MMM, hh:mm a' }}
+                </div>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- ── Requester Information Section ── -->
+      <div class="detail-section">
+        <h4 class="section-title-icon">
+          <span class="material-icons">person</span>
+          REQUESTER INFORMATION
+        </h4>
+        <div class="detail-grid-cards">
+          <div class="detail-item-card">
+            <span class="detail-label-sm">NAME</span>
+            <span class="detail-value-lg">{{ getRequesterName() }}</span>
+          </div>
+          <div class="detail-item-card">
+            <span class="detail-label-sm">EMAIL</span>
+            <span class="detail-value-lg">{{ getRequesterEmail() }}</span>
+          </div>
+          <div class="detail-item-card" *ngIf="selectedItem.urgency">
+            <span class="detail-label-sm">URGENCY</span>
+            <span class="detail-value-lg urgency-badge-inline" [ngClass]="'urgency-' + (selectedItem.urgency || '').toLowerCase()">{{ selectedItem.urgency }}</span>
+          </div>
+          <div class="detail-item-card" *ngIf="selectedItem.needs_temp_asset">
+            <span class="detail-label-sm">TEMP ASSET NEEDED</span>
+            <span class="detail-value-lg" style="color: #dc2626; font-weight: 700;">Yes</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Employee Service Reason ── -->
+      <div class="detail-section">
+        <h4 class="section-title-icon" style="color: var(--primary, #1a56db);">
+          <span class="material-icons">description</span>
+          EMPLOYEE SERVICE REASON
+        </h4>
+        <div class="reason-box">
+          <p>{{ selectedItem.issue_description || '—' }}</p>
+        </div>
+      </div>
+
+      <!-- ── Previous Remarks (accumulated) ── -->
+      <div class="detail-section" *ngIf="getAccumulatedRemarks().length > 0">
+        <h4 class="section-title-icon" style="color: #6366f1;">
+          <span class="material-icons">reviews</span>
+          REMARKS HISTORY
+        </h4>
+        <div class="remarks-history-list">
+          <div class="remark-entry" *ngFor="let r of getAccumulatedRemarks()">
+            <div class="remark-source">
+              <span class="material-icons" style="font-size: 14px;">person</span>
+              {{ r.source }}
+            </div>
+            <p class="remark-text">"{{ r.text }}"</p>
+            <span class="remark-date" *ngIf="r.date">{{ r.date | date:'dd MMM yyyy, hh:mm a' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Process Request (Remarks + Actions) ── -->
+      <div class="detail-section process-section">
+        <h4 class="section-title-icon" style="color: var(--primary, #1a56db);">
+          <span class="material-icons">gavel</span>
+          PROCESS REQUEST
+        </h4>
+
+        <!-- Allocation Team Member Selector (Stage 1 only) -->
+        <div class="assign-member-box" *ngIf="selectedItem.stage === 'STAGE_1_MANAGER' && allocationTeamMemberList.length > 0">
+          <label>Assign Allocation Team Member</label>
+          <div *ngIf="allocationTeamMemberList.length === 1; else allocationMemberDropdown" class="readonly-member">
+            {{ getSelectedAllocationMemberName() }}
+          </div>
+          <ng-template #allocationMemberDropdown>
+            <select [(ngModel)]="selectedAllocationMemberId" class="form-control">
+              <option *ngFor="let m of allocationTeamMemberList" [value]="m.user_id">{{ m.name }}</option>
+            </select>
+          </ng-template>
+        </div>
+
+        <div class="remarks-form-box">
+          <label>
+            Approver Remarks
+            <span class="hint-text">(Mandatory for rejection)</span>
+          </label>
+          <textarea [(ngModel)]="actionRemarks"
+            placeholder="Please provide your remarks for approval or rejection..."
+            rows="3" class="remarks-textarea-premium"></textarea>
+          <small class="remarks-hint">These remarks will be visible in the approval history.</small>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Footer Actions ── -->
+    <div class="drawer-footer-actions" *ngIf="selectedItem">
+      <button class="btn-drawer-close" (click)="closeDrawer()">Close</button>
+      <button class="btn-drawer-approve" *ngIf="selectedItem.approval_status === 'Pending'" (click)="handleApprove(selectedItem)" [disabled]="isSaving">
+        <span class="material-icons">check</span>
+        {{ selectedItem.stage === 'STAGE_3_MANAGER_FINAL' ? 'Final Approve' : 'Approve' }}
+      </button>
+      <button class="btn-drawer-reject" *ngIf="selectedItem.approval_status === 'Pending'" (click)="rejectApproval(selectedItem)" [disabled]="isSaving">
+        <span class="material-icons">close</span>
+        Reject
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Serviced Details Drawer ──────────────────────────────────────── -->
+<div class="drawer-overlay" *ngIf="servicedDrawerOpen" (click)="closeServicedDrawer()"></div>
+<div class="details-drawer serviced-details-drawer" [class.open]="servicedDrawerOpen">
+  <div class="drawer-header-premium serviced-header" *ngIf="servicedDrawerItem">
+    <div class="drawer-title-block">
+      <span class="drawer-label">Serviced Request Details</span>
+      <h3>{{ servicedDrawerItem.service_request_id }}</h3>
+    </div>
+    <button class="close-btn" (click)="closeServicedDrawer()">
+      <span class="material-icons">close</span>
+    </button>
+  </div>
+
+  <div class="drawer-body serviced-drawer-body" *ngIf="servicedDrawerItem">
+    <div class="handover-status-banner">
+      <span class="material-icons">check_circle</span>
+      <div>
+        <strong>Service Completed</strong>
+        <small>Ready for employee handover</small>
+      </div>
+    </div>
+
+    <div class="handover-assets-grid">
+      <div class="asset-summary-card">
+        <div class="asset-card-header">
+          <span class="material-icons">inventory_2</span>
+          <h4>Original Asset</h4>
+        </div>
+        <div class="asset-field">
+          <span>Asset ID</span>
+          <strong class="mono">{{ servicedDrawerItem.asset_id }}</strong>
+        </div>
+        <div class="asset-field">
+          <span>Asset Name</span>
+          <strong>{{ servicedDrawerItem.temp1 || servicedDrawerItem.asset_id }}</strong>
+        </div>
+      </div>
+
+      <div class="asset-summary-card temp-card" *ngIf="hasActiveTempAsset()">
+        <div class="asset-card-header">
+          <span class="material-icons">devices_other</span>
+          <h4>Temporary Asset</h4>
+        </div>
+        <div class="asset-field">
+          <span>Temp Asset ID</span>
+          <strong class="mono">{{ tempAssetInfo.temp_asset_id || 'N/A' }}</strong>
+        </div>
+        <div class="asset-field" *ngIf="tempAssetInfo.temp_asset_name">
+          <span>Temp Asset Name</span>
+          <strong>{{ tempAssetInfo.temp_asset_name }}</strong>
+        </div>
+        <div class="asset-field" *ngIf="tempAssetInfo.temp_asset_serial">
+          <span>Temp Serial No.</span>
+          <strong class="mono">{{ tempAssetInfo.temp_asset_serial }}</strong>
+        </div>
+        <div class="asset-field">
+          <span>Assigned To</span>
+          <strong>{{ tempAssetInfo.user_id }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="section-title-icon">
+        <span class="material-icons">rule</span>
+        Handover Steps
+      </div>
+      <div class="handover-steps">
+        <div class="step-card" [class.step-done]="tempReturnDone" *ngIf="hasActiveTempAsset()">
+          <div class="step-header">
+            <div class="step-number">
+              <span class="material-icons" *ngIf="tempReturnDone">check_circle</span>
+              <span *ngIf="!tempReturnDone">1</span>
+            </div>
+            <div class="step-info">
+              <span class="step-title">Return Temporary Asset</span>
+              <span class="step-desc">{{ tempReturnDone ? 'Temporary asset has been returned.' : 'Collect the temporary asset from the employee and mark it returned.' }}</span>
+            </div>
+          </div>
+          <button class="step-btn" *ngIf="!tempReturnDone" (click)="returnTempAsset()" [disabled]="isSaving">
+            <span class="material-icons">undo</span>
+            {{ isSaving ? 'Processing...' : 'Confirm Return' }}
+          </button>
+        </div>
+
+        <div class="step-card" [class.step-disabled]="!canCompleteHandover()">
+          <div class="step-header">
+            <div class="step-number">
+              <span class="material-icons" *ngIf="canCompleteHandover()">arrow_forward</span>
+              <span *ngIf="!canCompleteHandover()">2</span>
+            </div>
+            <div class="step-info">
+              <span class="step-title">Handover Serviced Asset</span>
+              <span class="step-desc">Hand over the serviced original asset back to the employee.</span>
+            </div>
+          </div>
+          <button class="step-btn step-btn-primary" *ngIf="canCompleteHandover()" (click)="completeHandover()" [disabled]="isSaving">
+            <span class="material-icons">handshake</span>
+            {{ isSaving ? 'Processing...' : 'Complete Handover' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Temp Asset Assignment Modal ──────────────────────────────────── -->
+<div class="modal-overlay" *ngIf="showTempAssetModal" (click)="closeTempAssetModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Assign Temporary Asset</h3>
+      <button class="close-btn" (click)="closeTempAssetModal()">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <!-- Fallback warning when no matching type/category assets found -->
+      <div *ngIf="tempAssetFallbackMode"
+           style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+        <span class="material-icons" style="color: #d97706; font-size: 1.3rem;">warning</span>
+        <span style="color: #92400e; font-size: 0.88rem; line-height: 1.4;">
+          No matching assets found for this asset's type/category. Showing all available assets.
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label>
+          Select Available Asset
+          <span class="required-star">*</span>
+          <span *ngIf="!tempAssetFallbackMode && filteredTempAssets.length > 0"
+                style="font-size: 0.78rem; color: #059669; font-weight: 500; margin-left: 6px;">
+            (Matching type &amp; category)
+          </span>
+        </label>
+        <select [(ngModel)]="selectedTempAssetId" class="form-control">
+          <option value="" disabled>Choose an asset...</option>
+          <option *ngFor="let asset of filteredTempAssets" [value]="asset.asset_id">
+            {{ asset.asset_name }} ({{ asset.serial_number || asset.asset_id }})
+          </option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Expected Return Date <span class="required-star">*</span></label>
+        <input type="date" [(ngModel)]="tempExpectedReturnDate" class="form-control" [min]="minReturnDate" required>
+        <small class="field-hint">Today or a future date only.</small>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeTempAssetModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="assignTempAsset()" [disabled]="!isTempAssetFormValid() || isSaving">
+        {{ isSaving ? 'Assigning...' : 'Assign' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Mark Serviced Modal ──────────────────────────────────────────── -->
+<div class="modal-overlay" *ngIf="showServicedModal" (click)="closeServicedModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Mark as Serviced</h3>
+      <button class="close-btn" (click)="closeServicedModal()">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Serviced By <span class="required-star">*</span></label>
+        <input type="text" [(ngModel)]="servicedBy" class="form-control" placeholder="Service center / vendor name" required>
+      </div>
+      <div class="form-group">
+        <label>Service Cost <span class="required-star">*</span></label>
+        <input type="text" [ngModel]="serviceCost" (ngModelChange)="onServiceCostInput($event)"
+          class="form-control" placeholder="0.00" inputmode="decimal" pattern="[0-9]*\\.?[0-9]*" required>
+      </div>
+      <div class="form-group">
+        <label>Remarks <span class="required-star">*</span></label>
+        <textarea [(ngModel)]="servicedRemarks" class="form-control" rows="3"
+          placeholder="Service details..." required></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeServicedModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="markServiced()" [disabled]="!isServicedFormValid() || isSaving">
+        {{ isSaving ? 'Processing...' : 'Mark Serviced' }}
+      </button>
+    </div>
+  </div>
+</div>

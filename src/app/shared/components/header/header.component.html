@@ -1,0 +1,154 @@
+<header class="header">
+  <div class="header-left">
+    <div *ngIf="isDashboard">
+      <h2 class="page-title">Welcome Back</h2>
+      <p class="subtitle">Track your assets and view system status.</p>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <!-- Notification Bell Icon (Only for approvers: Team Lead, Asset Manager, Allocation Team, Admin) -->
+    <div class="notification-container" *ngIf="currentUser && isApprover">
+      <div class="notification-indicator" (click)="toggleDropdown($event)"
+        style="position: relative; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #ffffff; border: 1px solid #e2e8f0; color: #64748b; transition: all 0.2s;">
+        <span class="material-icons-outlined">notifications</span>
+        <span class="notification-badge" *ngIf="unreadCount > 0"
+          style="position: absolute; top: -2px; right: -2px; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; background: #ef4444; color: #ffffff; font-weight: 700; border: 2px solid #ffffff; min-width: 18px; text-align: center; height: 18px; display: flex; align-items: center; justify-content: center;">
+          {{unreadCount}}
+        </span>
+      </div>
+
+      <!-- Notifications Dropdown Menu -->
+      <div class="notification-dropdown" [class.show]="showDropdown">
+        <div class="dropdown-header">
+          <h4>Notifications</h4>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="clear-all-btn" *ngIf="notifications.length > 0" (click)="markAllAsRead($event)">
+              Mark all as read
+            </button>
+            <button class="clear-all-btn" *ngIf="notifications.length > 0" (click)="deleteAllNotifications($event)"
+              style="background: #fee2e2; color: #b91c1c; border: none;" title="Clear all notifications">
+              <span class="material-icons" style="font-size: 14px; vertical-align: middle;">delete_sweep</span>
+              Clear All
+            </button>
+          </div>
+        </div>
+        <div class="dropdown-body">
+          <div class="dropdown-empty" *ngIf="notifications.length === 0">
+            <span class="material-icons-outlined">notifications_off</span>
+            <span>No notifications yet</span>
+          </div>
+          <div class="notification-item" *ngFor="let item of notifications" [class.unread]="!item.read"
+            (click)="viewDetails(item, $event)" style="position: relative;">
+            <div class="item-icon" [ngClass]="item.type">
+              <span class="material-icons">
+                {{ item.type === 'success' ? 'check_circle' :
+                item.type === 'error' ? 'error' :
+                item.type === 'warning' ? 'warning' : 'info' }}
+              </span>
+            </div>
+            <div class="item-content">
+              <div class="item-title">{{item.title}}</div>
+              <div class="item-message">{{item.message}}</div>
+              <div class="item-time">{{item.timestamp | date:'shortTime'}}</div>
+            </div>
+            <button class="notif-delete-btn" (click)="deleteNotification(item.id, $event)" title="Dismiss notification"
+              style="position: absolute; top: 6px; right: 8px; background: none; border: none; cursor: pointer; padding: 2px 4px; border-radius: 4px; color: #94a3b8; line-height: 1; font-size: 14px; transition: color 0.15s, background 0.15s;"
+              onmouseenter="this.style.color='#ef4444'; this.style.background='#fee2e2';"
+              onmouseleave="this.style.color='#94a3b8'; this.style.background='none';">
+              <span class="material-icons" style="font-size: 15px; vertical-align: middle;">close</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="user-corner-menu" *ngIf="currentUser">
+      <div class="user-profile-trigger">
+        <div class="user-info-display">
+          <span class="profile-name">{{currentUser.name}}</span>
+          <span class="profile-role">{{currentUser.role}}</span>
+        </div>
+        <div class="user-avatar-circle">
+          <span class="material-icons-outlined">account_circle</span>
+        </div>
+      </div>
+      <div class="user-hover-card">
+        <div class="hover-avatar">
+          <span class="material-icons-outlined">person</span>
+        </div>
+        <h5 style="margin: 8px 0 4px; font-size: 16px; color: #333;">{{currentUser.name || currentUser.firstName}}</h5>
+        <span class="badge badge-info"
+          style="margin-bottom: 12px; font-size: 11px; padding: 4px 8px; background: #e0f2fe; color: #0369a1; border-radius: 12px; border: 1px solid #bae6fd;">
+          {{currentUser.role}}
+        </span>
+        <div class="hover-info-row">
+          <span class="material-icons-outlined" style="font-size: 16px;">badge</span>
+          <span>
+            <strong>Emp Code:</strong> {{currentUser.id}}
+            <span *ngIf="currentUser.assetTypeName"
+              style="color: #6366f1; font-weight: 600; margin-left: 4px;">({{currentUser.assetTypeName}})</span>
+            <span *ngIf="!currentUser.assetTypeName && currentUser.assetTypeId"
+              style="color: #94a3b8; font-size: 11px; font-style: italic; margin-left: 4px;">(Resolving type...)</span>
+          </span>
+        </div>
+        <div class="hover-info-row" *ngIf="currentUser.projectName">
+          <span class="material-icons-outlined" style="font-size: 16px;">work</span>
+          <span><strong>Project:</strong> {{currentUser.projectName}}</span>
+        </div>
+        <div class="hover-info-row" *ngIf="currentUser.teamLeadName">
+          <span class="material-icons-outlined" style="font-size: 16px;">supervisor_account</span>
+          <span><strong>Team Lead:</strong> {{currentUser.teamLeadId}} - {{currentUser.teamLeadName}}</span>
+        </div>
+        <div class="hover-info-row"
+          *ngIf="currentUser.team && currentUser.team !== 'General' && currentUser.team !== currentUser.projectName">
+          <span class="material-icons-outlined" style="font-size: 16px;">groups</span>
+          <span><strong>Team:</strong> {{currentUser.team}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Notification Details Modal Overlay -->
+<div class="notification-modal-overlay" *ngIf="activeNotification" (click)="closeDetails()">
+  <div class="notification-modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-icon" [ngClass]="activeNotification.type"
+        style="display:flex; align-items:center; justify-content:center; border-radius:50%; width:36px; height:36px;"
+        [style.background-color]="activeNotification.type === 'success' ? '#dcfce7' : activeNotification.type === 'error' ? '#fee2e2' : activeNotification.type === 'warning' ? '#fef9c3' : '#dbeafe'"
+        [style.color]="activeNotification.type === 'success' ? '#15803d' : activeNotification.type === 'error' ? '#b91c1c' : activeNotification.type === 'warning' ? '#a16207' : '#1d4ed8'">
+        <span class="material-icons">
+          {{ activeNotification.type === 'success' ? 'check_circle' :
+          activeNotification.type === 'error' ? 'error' :
+          activeNotification.type === 'warning' ? 'warning' : 'info' }}
+        </span>
+      </div>
+      <h4 class="modal-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #0f172a;">
+        {{activeNotification.title}}</h4>
+    </div>
+    <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div class="modal-row" style="display: flex; flex-direction: column; gap: 4px;">
+        <label
+          style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Alert
+          Message</label>
+        <div class="row-value" style="font-size: 0.9rem; color: #1e293b; font-weight: 500; line-height:1.4;">
+          {{activeNotification.message}}</div>
+      </div>
+      <div class="modal-row" style="display: flex; flex-direction: column; gap: 4px;">
+        <label
+          style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Received
+          At</label>
+        <div class="row-value" style="font-size: 0.9rem; color: #1e293b; font-weight: 500;">
+          {{activeNotification.timestamp | date:'medium'}}</div>
+      </div>
+    </div>
+    <div class="modal-footer"
+      style="padding: 12px 20px; background-color: #f8fafc; display: flex; justify-content: flex-end; border-top: 1px solid #f1f5f9;">
+      <button class="btn btn-secondary" (click)="closeDetails()"
+        style="background: #e2e8f0; border: none; padding: 6px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; transition: background 0.2s; color: #334155;">
+        Close
+      </button>
+    </div>
+  </div>
+</div>

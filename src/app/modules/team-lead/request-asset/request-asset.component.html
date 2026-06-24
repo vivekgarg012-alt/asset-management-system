@@ -1,0 +1,97 @@
+<div class="card animate-fade-in" style="max-width: 800px; margin: 0 auto; overflow: hidden;">
+  <div class="card-header" style="background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 60%, #4299e1 100%); color: white; border: none; padding: 20px 24px;">
+    <h3 class="m-0" style="color: white;">Request New Asset</h3>
+    <p style="color: #e2e8f0; margin-top: 8px; margin-bottom: 0;">Submit a request for new hardware, software, or other assets for yourself.</p>
+  </div>
+  
+  <!-- Workflow Preview Tracker -->
+  <div class="approval-chain-top" style="margin: 20px 24px; background: #f8fafc; border: 1px dashed #cbd5e1;">
+    <h4 style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 15px;">
+      <span class="material-icons-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">info_outline</span>
+      Anticipated Approval Workflow
+    </h4>
+    <div class="horizontal-timeline">
+      <div class="hz-timeline-item stage-pending">
+        <div class="hz-timeline-marker">
+          <div class="hz-timeline-dot stage-pending">
+            <span class="material-icons-outlined">radio_button_unchecked</span>
+          </div>
+          <div class="hz-timeline-connector"></div>
+        </div>
+        <div class="hz-timeline-content">
+          <span class="hz-timeline-stage">Asset Manager Approval</span>
+          <span class="timeline-action-badge stage-pending">Next Stage</span>
+        </div>
+      </div>
+      <div class="hz-timeline-item stage-pending" style="flex: 0 1 auto;">
+        <div class="hz-timeline-marker">
+          <div class="hz-timeline-dot stage-pending">
+            <span class="material-icons-outlined">radio_button_unchecked</span>
+          </div>
+        </div>
+        <div class="hz-timeline-content">
+          <span class="hz-timeline-stage">Asset Allocation</span>
+          <span class="timeline-action-badge stage-pending">Final Stage</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <form [formGroup]="requestForm" (ngSubmit)="onSubmit()">
+      <div class="grid grid-2 gap-20 form-group mb-16">
+        <div>
+          <label class="form-label">Asset Type *</label>
+          <select formControlName="assetType" class="form-control" (change)="onTypeChange()">
+            <option value="" disabled>Select Type</option>
+            <option *ngFor="let type of availableTypes" [value]="getObjectId(type, 'type')">
+              {{ getObjectName(type, 'type') }}
+            </option>
+          </select>
+          <div *ngIf="isFieldInvalid('assetType')" class="error-msg">Asset type is required</div>
+        </div>
+        <div>
+          <label class="form-label">Urgency *</label>
+          <select formControlName="urgency" class="form-control">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-1 gap-20 form-group mb-16">
+        <div>
+          <label class="form-label">Sub-Category *</label>
+          <select formControlName="subCategory" class="form-control">
+            <option value="" disabled>Select Sub-Category</option>
+            <option *ngFor="let sub of availableSubCategories" [value]="getObjectId(sub, 'subcategory')">
+              {{ getObjectName(sub, 'subcategory') }}
+            </option>
+          </select>
+          <div *ngIf="isFieldInvalid('subCategory')" class="error-msg">Sub-category is required</div>
+        </div>
+      </div>
+
+      <div class="form-group mb-24">
+        <label class="form-label" [class.text-danger]="isFieldInvalid('justification')">Business Justification *</label>
+        <textarea formControlName="justification" class="form-control" [class.border-danger]="isFieldInvalid('justification')" placeholder="Please explain why you need this asset..." rows="4"></textarea>
+        <div class="field-hint" [class.text-danger]="isFieldInvalid('justification')">
+          <span *ngIf="!requestForm.get('justification')?.value?.length" class="text-muted">Minimum 10 characters required</span>
+          <span *ngIf="requestForm.get('justification')?.value?.length > 0 && requestForm.get('justification')?.value?.length < 10" class="text-danger">
+            Need {{ 10 - requestForm.get('justification')?.value?.length }} more characters
+          </span>
+          <span *ngIf="requestForm.get('justification')?.value?.length >= 10" class="text-success">Ideal length reached</span>
+        </div>
+      </div>
+
+      <div class="mt-24 pt-16" style="border-top: 1px solid #edf2f7; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" routerLink="/team-lead/my-asset">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="requestForm.invalid || isSubmitting">
+          <span *ngIf="isSubmitting">Submitting...</span>
+          <span *ngIf="!isSubmitting">Submit Request</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,208 @@
+<div class="inventory-container">
+  <div class="header-section">
+    <div class="title-block">
+      <span class="title-icon material-icons">inventory_2</span>
+      <div>
+        <h2>Asset Inventory</h2>
+        <p>{{ inventoryTypeName || 'Assigned' }} inventory visible for your allocation team role</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="summary-stats" *ngIf="!loading">
+    <div class="summary-stat">
+      <span class="material-icons">inventory_2</span>
+      <div>
+        <span class="label">Total Assets</span>
+        <span class="value">{{ inventoryStats.total }}</span>
+      </div>
+    </div>
+    <div class="summary-stat available">
+      <span class="material-icons">check_circle</span>
+      <div>
+        <span class="label">Available</span>
+        <span class="value">{{ inventoryStats.available }}</span>
+      </div>
+    </div>
+    <div class="summary-stat move-to-allocation">
+      <span class="material-icons">assignment_turned_in</span>
+      <div>
+        <span class="label">Ready for Allocation</span>
+        <span class="value">{{ inventoryStats.moveToAllocation }}</span>
+      </div>
+    </div>
+    <div class="summary-stat allocated">
+      <span class="material-icons">person_pin_circle</span>
+      <div>
+        <span class="label">Allocated</span>
+        <span class="value">{{ inventoryStats.assigned }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="view-tabs">
+    <button class="tab-item" [class.active]="viewMode === 'summary'" (click)="viewMode = 'summary'">
+      <span class="material-icons">category</span>
+      Category Summary
+    </button>
+    <button class="tab-item" [class.active]="viewMode === 'details'" (click)="viewMode = 'details'">
+      <span class="material-icons">table_rows</span>
+      Asset Details
+    </button>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading inventory...</p>
+  </div>
+
+  <!-- Summary View -->
+  <div class="summary-view" *ngIf="!loading && viewMode === 'summary'">
+    <div class="table-card">
+      <div class="table-title">
+        <div>
+          <h3>Category Breakdown</h3>
+          <p>Counts are calculated from your assigned asset type only.</p>
+        </div>
+      </div>
+      <table class="inventory-table summary-table">
+        <thead>
+          <tr>
+            <th>Asset Type</th>
+            <th>Category</th>
+            <th>Total</th>
+            <th>Available</th>
+            <th>Ready for Allocation</th>
+            <th>Allocated</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of summaryRows">
+            <td>{{ row.typeName }}</td>
+            <td>{{ row.categoryName }}</td>
+            <td><strong>{{ row.total }}</strong></td>
+            <td class="count-available">{{ row.available }}</td>
+            <td class="count-ready">{{ row.moveToAllocation }}</td>
+            <td class="count-allocated">{{ row.assigned }}</td>
+            <td>
+              <button class="link-action" (click)="selectSubCategory(row.categoryName)">
+                <span class="material-icons">visibility</span>
+                View Assets
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="summaryRows.length === 0">
+            <td colspan="7">
+              <div class="empty-state">
+                <span class="material-icons">inventory_2</span>
+                <h4>No inventory assigned</h4>
+                <p>No assets are linked to your allocation team asset type.</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Details View -->
+  <div class="details-view" *ngIf="!loading && viewMode === 'details'">
+    <div class="controls-bar">
+      <div class="search-box">
+        <span class="material-icons">search</span>
+        <input type="text" [(ngModel)]="searchText" (input)="onFilterChange()" placeholder="Search by name, tag, category, or request...">
+      </div>
+
+      <select class="filter-select" [(ngModel)]="statusFilter" (change)="onFilterChange()">
+      <option value="">All Statuses</option>
+      <option value="Available">Available</option>
+      <option value="MoveToAllocationTeam">Ready for Allocation</option>
+      <option value="Allocated">Allocated</option>
+      <option value="In Repair">In Repair</option>
+      </select>
+
+      <button class="clear-btn" *ngIf="searchText || statusFilter" (click)="clearFilters()">
+        <span class="material-icons">close</span>
+        Clear
+      </button>
+    </div>
+
+  <div class="table-card">
+    <div class="table-title">
+      <div>
+        <h3>Asset Details</h3>
+        <p>{{ filteredAssets.length }} assets match the current view.</p>
+      </div>
+    </div>
+    <table class="inventory-table">
+      <thead>
+        <tr>
+          <th>Asset Detail</th>
+          <th>Asset TAG</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Assigned To</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let asset of paginatedAssets">
+          <td>
+            <div class="asset-info">
+              <span class="asset-name">{{ asset.name }}</span>
+              <span class="asset-cat">{{ asset.category }}</span>
+            </div>
+          </td>
+          <td>
+            <span class="asset-tag">{{ asset.assetTag }}</span>
+          </td>
+          <td>{{ asset.category }}</td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusClass(asset.status)" [title]="getStatusTitle(asset.status)">
+              {{ getStatusLabel(asset.status) }}
+            </span>
+          </td>
+          <td class="assigned-cell">
+            <div *ngIf="asset.assignedToName">
+              <span class="user-name">{{ asset.assignedToName }}</span>
+            </div>
+            <span class="text-muted" *ngIf="!asset.assignedToName">Unassigned</span>
+          </td>
+        </tr>
+        <tr *ngIf="paginatedAssets.length === 0">
+          <td colspan="5">
+            <div class="empty-state">
+              <span class="material-icons">search_off</span>
+              <h4>No assets found</h4>
+              <p>Try changing the search text or status filter.</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination Controls -->
+    <div class="pagination-container" *ngIf="filteredAssets.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ getPaginationRange() }}</strong> assets
+      </div>
+      
+      <div class="pagination-controls">
+        <button class="page-btn" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+          <span class="material-icons">chevron_left</span>
+        </button>
+        
+        <button class="page-btn" *ngFor="let p of getPageArray()" 
+                [class.active]="currentPage === p" (click)="changePage(p)">
+          {{ p }}
+        </button>
+        
+        <button class="page-btn" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+          <span class="material-icons">chevron_right</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+

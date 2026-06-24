@@ -1,0 +1,233 @@
+<div class="warranty-page">
+  <div class="main-content">
+    
+    <div class="header">
+      <div>
+        <h2>Warranty Extension Requests</h2>
+        <p>Review and finalize warranty extensions for employee assets</p>
+      </div>
+
+      <div class="header-stats">
+        <div class="stat-pill pending-pill">
+          <span class="material-icons">security</span>
+          <span>{{ pendingWarrantyCount }} Pending</span>
+        </div>
+        <div class="stat-pill resolved-pill">
+          <span class="material-icons">task_alt</span>
+          <span>{{ resolvedWarrantyRequests.length }} Resolved</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs-navigation">
+      <div class="tabs-group">
+        <button [class.active]="activeTab === 'pending'" (click)="setTab('pending')">
+          <span class="material-icons">pending_actions</span>
+          Pending Requests
+          <span class="tab-count" *ngIf="pendingWarrantyCount > 0">{{ pendingWarrantyCount }}</span>
+        </button>
+        <button [class.active]="activeTab === 'resolved'" (click)="setTab('resolved')">
+          <span class="material-icons">task_alt</span>
+          Resolved
+          <span class="tab-count resolved-count" *ngIf="resolvedWarrantyRequests.length > 0">{{ resolvedWarrantyRequests.length }}</span>
+        </button>
+      </div>
+
+      <div class="filter-actions ml-auto" style="display: flex; gap: 12px; align-items: center; margin-left: auto;">
+        <div class="search-box" style="position: relative;">
+          <span class="material-icons" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #94a3b8;">search</span>
+          <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onFilterChange()" placeholder="Search..." 
+                 style="padding: 8px 8px 8px 32px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: all 0.2s; width: 220px;">
+        </div>
+        
+        <select class="asset-filter" [(ngModel)]="selectedAssetType" (ngModelChange)="onFilterChange()"
+                style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; background: white; cursor: pointer;">
+          <option value="">All Asset Types</option>
+          <option *ngFor="let opt of assetTypeOptions" [value]="opt">{{ opt }}</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="table-container" *ngIf="!loading; else loadingTemplate">
+      <div class="warranty-table-wrapper" *ngIf="filteredWarrantyTickets.length > 0; else noDataTemplate">
+        <table>
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Employee Name</th>
+              <th>Asset Details</th>
+              <th>Serial Number</th>
+              <th>Current Expiry</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let req of paginatedWarrantyTickets">
+              <td class="req-id">{{ req.id }}</td>
+              <td>
+                <div class="user-info">
+                  <div class="avatar">{{ req.requesterName.charAt(0) }}</div>
+                  <span>{{ req.requesterName }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="asset-info">
+                  <span class="asset-name">{{ req.assetName }}</span>
+                </div>
+              </td>
+              <td class="serial-no">{{ req.assignedSerial || '—' }}</td>
+              <td>
+                <span class="date-pill">
+                  {{ req.assignedWarrantyExpiry | date:'mediumDate' }}
+                </span>
+              </td>
+              <td>
+                <button *ngIf="activeTab === 'pending'" class="btn-extend" (click)="openWarrantyModal(req)">
+                  <span class="material-icons">edit_calendar</span>
+                  Extend Warranty
+                </button>
+                <span *ngIf="activeTab === 'resolved'" class="status-badge" [class.approved]="req.status === 'Approved' || req.status === 'Completed'" [class.rejected]="req.status === 'Rejected'">
+                  {{ req.status }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pagination Footer -->
+        <div class="pagination-footer" *ngIf="totalFilteredCount > 0">
+          <div class="pagination-info">
+            Showing <strong>{{ totalFilteredCount === 0 ? 0 : (currentPage - 1) * pageSize + 1 }}</strong> to <strong>{{ Math.min(currentPage * pageSize, totalFilteredCount) }}</strong> of <strong>{{ totalFilteredCount }}</strong> requests
+          </div>
+          <div class="pagination-controls">
+            <!-- First page arrow -->
+            <button class="page-btn page-nav" [disabled]="currentPage === 1" (click)="goToPage(1)" title="First page">
+              <span class="material-icons">first_page</span>
+            </button>
+            <!-- Previous arrow -->
+            <button class="page-btn page-nav" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)" title="Previous page">
+              <span class="material-icons">chevron_left</span>
+            </button>
+
+            <!-- Page numbers with ellipsis -->
+            <ng-container *ngFor="let p of visiblePages">
+              <span class="page-ellipsis" *ngIf="p === '...'">…</span>
+              <button *ngIf="p !== '...'" class="page-btn" [class.active]="currentPage === p" (click)="goToPage(+p)">
+                {{ p }}
+              </button>
+            </ng-container>
+
+            <!-- Next arrow -->
+            <button class="page-btn page-nav" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)" title="Next page">
+              <span class="material-icons">chevron_right</span>
+            </button>
+            <!-- Last page arrow -->
+            <button class="page-btn page-nav" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)" title="Last page">
+              <span class="material-icons">last_page</span>
+            </button>
+          </div>
+          <div class="pagination-page-indicator">
+            Page {{ currentPage }} of {{ totalPages }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Warranty Extension Professional Form Modal -->
+<div class="modal-overlay" *ngIf="isWarrantyModalOpen" (click)="closeWarrantyModal()">
+  <div class="modal-content professional-form animate-slide-up" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="header-title">
+        <span class="material-icons">history_edu</span>
+        <h3>Extend Asset Warranty</h3>
+      </div>
+      <button (click)="closeWarrantyModal()">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    
+    <div class="modal-body" *ngIf="selectedWarrantyRequest">
+      <div class="form-summary">
+        <div class="summary-item">
+          <span class="label">Asset Details</span>
+          <span class="value">{{ selectedWarrantyRequest.assetName }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Serial Number</span>
+          <span class="value">{{ selectedWarrantyRequest.assignedSerial }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Current Expiry</span>
+          <span class="value text-amber">{{ selectedWarrantyRequest.assignedWarrantyExpiry | date:'fullDate' }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Requested By</span>
+          <span class="value">{{ selectedWarrantyRequest.requesterName }}</span>
+        </div>
+        <div class="summary-item employee-remarks-item" style="grid-column: span 2; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; margin-top: 8px;">
+          <span class="label" style="display: flex; align-items: center; gap: 4px; color: #475569; margin-bottom: 4px;">
+            <span class="material-icons" style="font-size: 16px;">person</span>
+            Employee Remarks
+          </span>
+          <span class="value" style="color: #334155; font-style: italic;" *ngIf="selectedWarrantyRequest.justification || selectedWarrantyRequest.reason">"{{ selectedWarrantyRequest.justification || selectedWarrantyRequest.reason }}"</span>
+          <span class="value" style="color: #94a3b8; font-style: italic;" *ngIf="!(selectedWarrantyRequest.justification || selectedWarrantyRequest.reason)">No remarks provided by the employee.</span>
+        </div>
+        <div class="summary-item manager-remarks-item" style="grid-column: span 2; background: #f0f9ff; border: 1px dashed #0ea5e9; border-radius: 8px; padding: 12px; margin-top: 8px;">
+          <span class="label" style="display: flex; align-items: center; gap: 4px; color: #0369a1; margin-bottom: 4px;">
+            <span class="material-icons" style="font-size: 16px;">comment</span>
+            Asset Manager Remarks
+          </span>
+          <span class="value" style="color: #0c4a6e; font-style: italic;" *ngIf="!loadingRemarks && managerRemarks">"{{ managerRemarks }}"</span>
+          <span class="value" style="color: #94a3b8; font-style: italic;" *ngIf="!loadingRemarks && !managerRemarks">No remarks provided by the manager.</span>
+          <span class="value" style="color: #0284c7; display: flex; align-items: center; gap: 8px;" *ngIf="loadingRemarks">
+            <span class="spinner-small"></span>
+            Loading remarks...
+          </span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="newExpiryDate">Select New Warranty Expiry Date</label>
+        <div class="input-wrapper">
+          <span class="material-icons">calendar_today</span>
+          <input 
+            type="date" 
+            id="newExpiryDate" 
+            [(ngModel)]="newWarrantyDate"
+            [min]="selectedWarrantyRequest.assignedWarrantyExpiry"
+          >
+        </div>
+        <p class="form-hint">The new date must be after the current expiry date.</p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeWarrantyModal()">Cancel</button>
+      <button class="btn-primary" (click)="approveWarrantyExtension()" [disabled]="!newWarrantyDate">
+        <span class="material-icons">verified</span>
+        Confirm Extension
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Templates -->
+<ng-template #loadingTemplate>
+  <div class="empty-state">
+    <div class="spinner"></div>
+    <p>Loading warranty requests...</p>
+  </div>
+</ng-template>
+
+<ng-template #noDataTemplate>
+  <div class="empty-state">
+    <span class="material-icons">{{ activeTab === 'pending' ? 'task_alt' : 'inventory_2' }}</span>
+    <h3>{{ activeTab === 'pending' ? 'No Pending Requests' : 'No Resolved Requests' }}</h3>
+    <p>{{ activeTab === 'pending' ? 'All warranty extension requests have been processed.' : 'You haven\'t processed any warranty extension requests yet.' }}</p>
+  </div>
+</ng-template>

@@ -1,0 +1,245 @@
+<div class="dashboard-container">
+  <!-- Page Header -->
+  <div class="page-header animate-slide-up">
+    <div class="page-title">
+      <span class="material-icons-outlined title-icon">dashboard</span>
+      <div>
+        <h2>Dashboard</h2>
+        <p class="text-muted">Asset inventory overview and reports</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="card animate-slide-up" *ngIf="isLoading" style="padding: 0; overflow: hidden;">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <h4>Loading dashboard...</h4>
+      <p class="text-muted">Fetching asset data from the server</p>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div class="card animate-slide-up" *ngIf="!isLoading && loadError" style="padding: 0; overflow: hidden;">
+    <div class="error-state">
+      <span class="material-icons-outlined error-icon">error_outline</span>
+      <h4>Failed to load dashboard</h4>
+      <p class="text-muted">{{ loadError }}</p>
+      <button class="btn-retry" (click)="loadDashboardData()">
+        <span class="material-icons-outlined">refresh</span>
+        Retry
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <ng-container *ngIf="!isLoading && !loadError">
+    <!-- Top Stat Cards -->
+    <div class="grid grid-4 gap-24 mb-24 animate-slide-up">
+      <app-stat-card label="Total Inventory" [value]="totalInventory" icon="inventory_2" color="blue"></app-stat-card>
+      <app-stat-card label="Allocated Assets" [value]="allocatedAssets" icon="assignment_ind" color="green"></app-stat-card>
+      <app-stat-card label="Allocation Team" [value]="allocationTeamAssets" icon="hub" color="purple"></app-stat-card>
+      <app-stat-card label="Available Assets" [value]="availableAssets" icon="check_circle" color="teal"></app-stat-card>
+    </div>
+
+    <!-- Categorized Pending Requests - Large Card -->
+    <div class="card section-card animate-slide-up mb-24">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="material-icons-outlined">pending_actions</span>
+          <h3>Pending Requests Breakdown</h3>
+        </div>
+        <span class="badge badge-pending">{{ pendingRequestsCount }} Total Pending Requests</span>
+      </div>
+      <div class="section-body">
+        <div class="requests-grid">
+          <!-- New Requests -->
+          <div class="request-mini-card" [routerLink]="['/asset-manager/requests']">
+            <div class="mini-card-icon blue">
+              <span class="material-icons-outlined">add_circle_outline</span>
+            </div>
+            <div class="mini-card-info">
+              <span class="mini-card-value">{{ newRequestsPendingCount }}</span>
+              <span class="mini-card-label">New Requests</span>
+            </div>
+            <span class="material-icons-outlined arrow">chevron_right</span>
+          </div>
+
+          <!-- Return Requests -->
+          <div class="request-mini-card" [routerLink]="['/asset-manager/requests']">
+            <div class="mini-card-icon purple">
+              <span class="material-icons-outlined">assignment_return</span>
+            </div>
+            <div class="mini-card-info">
+              <span class="mini-card-value">{{ returnRequestsPendingCount }}</span>
+              <span class="mini-card-label">Return Requests</span>
+            </div>
+            <span class="material-icons-outlined arrow">chevron_right</span>
+          </div>
+
+          <!-- Extend Requests -->
+          <div class="request-mini-card" [routerLink]="['/asset-manager/warranty']">
+            <div class="mini-card-icon amber">
+              <span class="material-icons-outlined">more_time</span>
+            </div>
+            <div class="mini-card-info">
+              <span class="mini-card-value">{{ extendRequestsPendingCount }}</span>
+              <span class="mini-card-label">Extend Requests</span>
+            </div>
+            <span class="material-icons-outlined arrow">chevron_right</span>
+          </div>
+
+          <!-- Maintenance Requests -->
+          <div class="request-mini-card" [routerLink]="['/asset-manager/service']">
+            <div class="mini-card-icon teal">
+              <span class="material-icons-outlined">build</span>
+            </div>
+            <div class="mini-card-info">
+              <span class="mini-card-value">{{ maintenanceRequestsPendingCount }}</span>
+              <span class="mini-card-label">Maintenance Requests</span>
+            </div>
+            <span class="material-icons-outlined arrow">chevron_right</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Assets by Type — Overview Bar Chart -->
+    <div class="card section-card animate-slide-up mb-24">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="material-icons-outlined">pie_chart</span>
+          <h3>Assets by Type</h3>
+        </div>
+        <span class="section-subtitle">Sub-category distribution of {{ managerAssetTypeName || 'your' }} assets ({{ grandTotal }} total)</span>
+      </div>
+      <div class="section-body">
+        <!-- Empty state when no types -->
+        <div class="empty-state" *ngIf="chartBreakdown.length === 0">
+          <span class="material-icons-outlined">inventory_2</span>
+          <p>No asset data available</p>
+        </div>
+
+        <div class="pie-chart-wrapper" *ngIf="chartBreakdown.length > 0">
+          <div class="pie-chart-container"
+            (mouseleave)="onTypeLeave()">
+            <!-- SVG Donut Chart with interactive slices -->
+            <svg class="pie-svg" viewBox="0 0 240 240">
+              <path *ngFor="let item of chartBreakdown; let i = index"
+                [attr.d]="getSlicePath(i)"
+                [attr.fill]="item.color"
+                [class.slice-hovered]="hoveredTypeIndex === i"
+                [class.slice-dimmed]="hoveredTypeIndex !== -1 && hoveredTypeIndex !== i"
+                (mouseenter)="onTypeHover(i)"
+                class="pie-slice" />
+            </svg>
+            <!-- Donut hole center -->
+            <div class="donut-hole">
+              <ng-container *ngIf="hoveredTypeIndex === -1">
+                <span class="donut-total">{{ grandTotal }}</span>
+                <span class="donut-label">{{ managerAssetTypeName.includes('&') ? 'My Assets' : (managerAssetTypeName || 'Total') }}</span>
+              </ng-container>
+              <ng-container *ngIf="hoveredTypeIndex !== -1">
+                <span class="donut-total donut-total-sm">{{ chartBreakdown[hoveredTypeIndex].count }}</span>
+                <span class="donut-label">{{ chartBreakdown[hoveredTypeIndex].type }}</span>
+              </ng-container>
+            </div>
+
+            <!-- Tooltip on hover -->
+              <div class="pie-tooltip" *ngIf="hoveredTypeIndex !== -1"
+              [style.borderColor]="chartBreakdown[hoveredTypeIndex].color">
+              <div class="tooltip-header">
+                <div class="type-icon-wrap"
+                  [style.background]="chartBreakdown[hoveredTypeIndex].bgColor"
+                  [style.color]="chartBreakdown[hoveredTypeIndex].color">
+                  <span class="material-icons-outlined">{{ chartBreakdown[hoveredTypeIndex].icon }}</span>
+                </div>
+                <div class="tooltip-title">
+                  <span class="tooltip-name">{{ chartBreakdown[hoveredTypeIndex].type }}</span>
+                  <span class="tooltip-stats">{{ chartBreakdown[hoveredTypeIndex].count }} assets · {{ getTypePercentage(chartBreakdown[hoveredTypeIndex].count) }}%</span>
+                </div>
+              </div>
+              <div class="tooltip-subcats" *ngIf="chartBreakdown[hoveredTypeIndex].subCategories.length > 0">
+                <div class="tooltip-subcat" *ngFor="let sub of chartBreakdown[hoveredTypeIndex].subCategories">
+                  <span class="tooltip-subcat-dot" [style.background]="chartBreakdown[hoveredTypeIndex].color"></span>
+                  <span class="tooltip-subcat-name">{{ sub.name }}</span>
+                  <span class="tooltip-subcat-count">{{ sub.count }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="pie-legend-list">
+            <div class="pie-legend-item"
+              *ngFor="let item of chartBreakdown; let i = index"
+              [class.legend-highlighted]="hoveredTypeIndex === i"
+              [class.legend-dimmed]="hoveredTypeIndex !== -1 && hoveredTypeIndex !== i"
+              (mouseenter)="onTypeHover(i)"
+              (mouseleave)="onTypeLeave()">
+              <div class="pie-legend-top">
+                <div class="type-icon-wrap" [style.background]="item.bgColor" [style.color]="item.color">
+                  <span class="material-icons-outlined">{{ item.icon }}</span>
+                </div>
+                <span class="type-name">{{ item.type }}</span>
+                <span class="legend-pct-badge" [style.background]="item.bgColor" [style.color]="item.color">{{ getTypePercentage(item.count) }}%</span>
+              </div>
+              <div class="legend-bar-track">
+                <div class="legend-bar-fill" [style.width.%]="getTypePercentage(item.count)" [style.background]="item.color"></div>
+              </div>
+              <span class="legend-count-text">{{ item.count }} assets</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Type & Sub-Category Breakdown -->
+    <div class="card section-card animate-slide-up" *ngIf="typeBreakdown.length > 0">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="material-icons-outlined">account_tree</span>
+          <h3>Type & Sub-Category Breakdown</h3>
+        </div>
+        <span class="section-subtitle">Detailed inventory distribution</span>
+      </div>
+      <div class="section-body">
+        <div class="type-group" *ngFor="let item of typeBreakdown">
+          <!-- Type Header -->
+          <div class="type-group-header">
+            <div class="type-group-title">
+              <div class="type-icon-wrap" [style.background]="item.bgColor" [style.color]="item.color">
+                <span class="material-icons-outlined">{{ item.icon }}</span>
+              </div>
+              <span class="type-group-name">{{ item.type }}</span>
+            </div>
+            <div class="type-group-stats">
+              <span class="type-group-count" [style.background]="item.bgColor"
+                [style.color]="item.color">{{ item.count }}</span>
+              <span class="type-group-pct">{{ getTypePercentage(item.count) }}% of total</span>
+            </div>
+          </div>
+
+          <!-- Sub-Category List -->
+          <div class="subcat-list" *ngIf="item.subCategories && item.subCategories.length > 0">
+            <div class="subcat-item" *ngFor="let sub of item.subCategories">
+              <div class="subcat-info">
+                <span class="subcat-dot" [style.background]="item.color"></span>
+                <span class="subcat-name">{{ sub.name }}</span>
+              </div>
+              <div class="subcat-bar-wrap">
+                <div class="subcat-bar-track">
+                  <div class="subcat-bar-fill" [style.width.%]="getSubCatPercentage(sub.count, item.count)"
+                    [style.background]="item.color"></div>
+                </div>
+              </div>
+              <span class="subcat-count">{{ sub.count }}</span>
+            </div>
+          </div>
+
+
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

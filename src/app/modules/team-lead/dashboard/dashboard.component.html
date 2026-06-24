@@ -1,0 +1,272 @@
+<div class="dashboard-container">
+  <!-- Loading State -->
+  <div class="card animate-slide-up" *ngIf="isLoading"
+    style="padding: 60px 0; border: none; background: transparent; box-shadow: none;">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <h4>Loading dashboard data...</h4>
+      <p class="text-muted">Fetching requests from the server</p>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading">
+    <div class="dashboard-top-row">
+      <!-- Stat Cards -->
+      <div class="stat-cards-section">
+        <div (click)="toggleTeamModal()" class="clickable-stat-card">
+          <app-stat-card label="Team Size" [value]="teamSize" icon="groups" color="blue"></app-stat-card>
+        </div>
+        <app-stat-card label="Team Assets" [value]="teamAssets" icon="devices" color="green"></app-stat-card>
+        <app-stat-card label="Pending Approvals" [value]="pendingApprovalsCount" icon="fact_check"
+          color="amber"></app-stat-card>
+      </div>
+    </div>
+
+    <div class="card animate-slide-up">
+      <div class="card-header border-0" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0;">Pending Approvals ({{teamRequests.length}})</h3>
+      <div class="search-box">
+        <input type="text" placeholder="Search approvals..." (input)="onSearch($event)" 
+               style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 250px;">
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th><span class="material-icons-outlined">tag</span> Request No</th>
+              <th><span class="material-icons-outlined">person</span> Requester Name</th>
+              <th><span class="material-icons-outlined">category</span> Category</th>
+              <th><span class="material-icons-outlined">devices</span> Asset Name</th>
+              <th><span class="material-icons-outlined">speed</span> Urgency</th>
+              <th><span class="material-icons-outlined">info</span> Status</th>
+              <th><span class="material-icons-outlined">event</span> Date</th>
+              <th class="text-center"><span class="material-icons-outlined">settings</span> Action</th>
+            </tr>
+          </thead>
+            <tbody>
+              <tr *ngFor="let req of paginatedRequests" class="clickable-row">
+                <td><strong>{{req.requestNumber}}</strong></td>
+                <td>{{req.requesterName}}</td>
+                <td>{{req.assetType}}</td>
+                <td>{{req.category}}</td>
+                <td>
+                  <span class="badge" 
+                        [ngClass]="{
+                          'badge-danger': req.urgency === 'High', 
+                          'badge-warning': req.urgency === 'Medium',
+                          'badge-success': req.urgency === 'Low'
+                        }">
+                    {{req.urgency}}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge badge-warning">{{req.status}}</span>
+                </td>
+                <td>{{req.requestDate | date:'mediumDate'}}</td>
+                <td class="text-center">
+                  <button (click)="selectRequest(req)" class="btn btn-icon btn-primary" title="Process Request">
+                    <span class="material-icons-outlined" style="font-size: 18px;">edit</span>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="teamRequests.length === 0">
+                <td colspan="8" class="text-center text-muted m-24 p-24">
+                  Awesome, no pending requests!
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-controls" *ngIf="totalPages > 1">
+          <button [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">Previous</button>
+          <span>Page {{currentPage}} of {{totalPages}}</span>
+          <button [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">Next</button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Copyright Footer - Moving inside container for consistency -->
+  <div class="grid grid-3 gap-8 mb-16 text-center" style="padding: 20px; color: var(--text-muted); font-size: 0.9rem;">
+    &copy; 2024 Adnate Asset Management System. All rights reserved.
+  </div>
+</div>
+
+<!-- Modal Popup -->
+<div class="modal-overlay" *ngIf="selectedRequest" (click)="cancelSelection()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <h4
+      style="margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 12px;">
+      Request Details - {{selectedRequest.requestNumber}}</h4>
+
+    <!-- Tracker Section -->
+    <div class="tracker-container mb-24" style="padding: 16px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+      <!-- Overall Progress -->
+      <div class="progress-section">
+        <div class="progress-header">
+          <span class="progress-label">OVERALL COMPLETION</span>
+          <span class="progress-percentage">{{ overallProgress }}%</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" [style.width.%]="overallProgress"></div>
+        </div>
+      </div>
+
+      <!-- Tracking Timeline -->
+      <div class="tracking-timeline mt-20" [class.loading]="loadingProgress" style="margin-top: 20px;">
+        <div class="timeline-step" *ngFor="let step of trackingSteps; let last = last"
+             [ngClass]="getApprovalStageClass(step.status)">
+          
+          <div class="step-indicator">
+            <div class="step-icon">
+              <span class="material-icons-outlined" [class.spinning]="step.isCurrent && step.status === 'Pending'">
+                {{ getApprovalIcon(step.status) }}
+              </span>
+            </div>
+            <div class="step-line" *ngIf="!last"></div>
+          </div>
+
+          <div class="step-content">
+            <div class="step-header">
+              <div class="step-name-block">
+                <h4 class="step-name">{{ step.name }}</h4>
+                <span class="step-role-label">{{ step.roleName }}</span>
+              </div>
+              <span class="step-status">{{ step.status }}</span>
+            </div>
+
+            <div class="step-details" *ngIf="step.status !== 'Pending' || step.isCurrent">
+              <div class="detail-row" *ngIf="step.timestamp">
+                <span class="material-icons-outlined">calendar_today</span>
+                <span class="detail-text">{{ step.timestamp | date:'medium' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="material-icons-outlined">chat_bubble_outline</span>
+                <span class="detail-text italic" *ngIf="step.comments">"{{ step.comments }}"</span>
+                <span class="detail-text" *ngIf="!step.comments">-</span>
+              </div>
+              <p class="step-message mt-4" *ngIf="step.isCurrent && !step.timestamp">Awaiting action at this stage...</p>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="loadingProgress" class="text-center p-16">
+          <div class="spinner-small" style="width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 2s linear infinite; margin: 0 auto;"></div>
+          <p class="text-xs text-muted mt-8">Fetching real-time progress...</p>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-2 gap-16" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Requester Name</label>
+        <input type="text" [value]="selectedRequest.requesterName" readonly
+          style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Asset Type</label>
+        <input type="text" [value]="selectedRequest.assetType" readonly
+          style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Asset Name</label>
+        <input type="text" [value]="selectedRequest.category" readonly
+          style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Urgency</label>
+        <input type="text" [value]="selectedRequest.urgency" readonly
+          style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; grid-column: span 2;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Reason</label>
+        <textarea readonly
+          style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; width: 100%; box-sizing: border-box; resize: vertical;" rows="3">{{selectedRequest.justification}}</textarea>
+      </div>
+
+      <!-- Attachment section -->
+      <div style="display: flex; flex-direction: column; gap: 8px; grid-column: span 2;" *ngIf="selectedRequest.document">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Attachment</label>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #f1f5f9; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <span class="material-icons-outlined" style="color: #64748b; font-size: 20px;">description</span>
+          <span style="font-size: 14px; color: #1e293b; font-family: monospace; flex: 1;" [title]="selectedRequest.document">{{ extractFileName(selectedRequest.document) }}</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-icon btn-outline" style="padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; cursor: pointer;"
+                    (click)="viewDocument(selectedRequest.document)" title="View Document">
+              <span class="material-icons-outlined" style="font-size: 18px; color: #475569;">visibility</span>
+            </button>
+            <button class="btn btn-icon btn-outline" style="padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; cursor: pointer;"
+                    (click)="downloadDocument(selectedRequest.document)" title="Download Document">
+              <span class="material-icons-outlined" style="font-size: 18px; color: #475569;">download</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remarks section -->
+      <div style="display: flex; flex-direction: column; gap: 8px; grid-column: span 2;">
+        <label style="font-size: 13px; font-weight: 500; color: #666;">Approver Remarks</label>
+        <textarea [(ngModel)]="tl_remarks" placeholder="Enter any remarks or comments here..." 
+                  style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: white; width: 100%; box-sizing: border-box; resize: vertical;" 
+                  rows="3"></textarea>
+      </div>
+    </div>
+
+
+    <div
+      style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid #eee;">
+      <button (click)="markAsReject()" [disabled]="!tl_remarks.trim()" 
+              [style.opacity]="tl_remarks.trim() ? '1' : '0.6'"
+              style="padding: 10px 18px; border: none; background: #dc3545; color: white; border-radius: 4px; cursor: pointer; font-weight: 500;">Reject</button>
+      <button (click)="markAsAccept()" 
+              style="padding: 10px 18px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer; font-weight: 500;">Accept</button>
+    </div>
+  </div>
+</div>
+
+<!-- Team Members Modal -->
+<div class="modal-overlay" *ngIf="showTeamModal" (click)="toggleTeamModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()" style="width: 700px; max-width: 95%;">
+    <h4 style="margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 12px;">
+      Team Members Details
+    </h4>
+
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th><span class="material-icons-outlined">person</span> Name</th>
+            <th><span class="material-icons-outlined">badge</span> Emp Code</th>
+            <th><span class="material-icons-outlined">email</span> Email</th>
+            <th><span class="material-icons-outlined">info</span> Status</th>
+            <th><span class="material-icons-outlined">supervisor_account</span> Team Lead</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let member of teamMembers">
+            <td><strong>{{member.name}}</strong></td>
+            <td>{{member.user_id}}</td>
+            <td>{{member.email}}</td>
+            <td>
+              <span class="badge" [ngClass]="{'badge-success': member.status === 'Active', 'badge-warning': member.status !== 'Active'}">
+                {{member.status}}
+              </span>
+            </td>
+            <td>{{member.team_lead}}</td>
+          </tr>
+          <tr *ngIf="teamMembers.length === 0">
+            <td colspan="5" class="text-center text-muted m-24 p-24">
+              No team members found.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid #eee;">
+      <button (click)="toggleTeamModal()"
+        style="padding: 10px 18px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; color: #444; font-weight: 500;">Close</button>
+    </div> -->
+  </div>
+</div>

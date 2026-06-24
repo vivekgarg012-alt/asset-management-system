@@ -1,0 +1,64 @@
+<div class="card animate-fade-in" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-header pb-0 border-0">
+    <h3>Service Asset</h3>
+    <p class="subtitle mt-8">Raise a service request for an asset currently assigned to you.</p>
+  </div>
+  <div class="card-body">
+    <form [formGroup]="serviceForm" (ngSubmit)="onSubmit()" translate="no">
+      <div class="form-group">
+        <label>Select Asset for Service *</label>
+        <select formControlName="assetId" class="form-control" (change)="onAssetSelect()">
+          <option value="" disabled>Select an Asset</option>
+          <option *ngFor="let asset of myAssets" [value]="asset.id">
+            {{ asset.assetTag }} - {{ asset.name }} ({{ asset.category }})
+          </option>
+        </select>
+      </div>
+
+      <div *ngIf="selectedAsset" class="mb-24 p-24 animate-slide-up" style="background: var(--gray-50); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+        <div class="grid grid-3 gap-16">
+          <div>
+            <p class="text-xs text-muted font-bold uppercase">Asset Tag</p>
+            <p class="font-medium mt-4">{{ selectedAsset.assetTag }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-muted font-bold uppercase">Type/Category</p>
+            <p class="font-medium mt-4">{{ selectedAsset.type }} - {{ selectedAsset.category }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-muted font-bold uppercase">Status</p>
+            <p class="mt-4"><app-status-badge [status]="selectedAsset.status" [showIcon]="false"></app-status-badge></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-16 mt-24">
+        <div class="form-group">
+          <label>Urgency *</label>
+          <select formControlName="urgency" class="form-control">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group mt-24">
+        <label>Issue Description *</label>
+        <textarea formControlName="issueDescription" class="form-control" data-gramm="false" spellcheck="false" placeholder="Describe the issue with this asset..." rows="4"></textarea>
+      </div>
+
+      <label class="service-check mt-16">
+        <input type="checkbox" formControlName="needsTempAsset">
+        <span>Temporary asset required while this asset is in service</span>
+      </label>
+
+      <div class="mt-24 pt-16" style="border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" routerLink="/employee/my-requests">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="serviceForm.invalid || isSubmitting">
+          {{ isSubmitting ? 'Submitting...' : 'Submit Service Request' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

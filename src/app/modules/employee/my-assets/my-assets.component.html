@@ -1,0 +1,170 @@
+<div class="card animate-fade-in">
+  <div class="card-header">
+    <div>
+      <h3>My Assigned Assets <span class="header-count-badge">{{ myAssets.length }}</span></h3>
+      <p class="subtitle mt-8">View and manage all hardware and software assigned to you.</p>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-wrapper">
+      <span class="material-icons-outlined search-icon">search</span>
+      <input type="text" class="search-input" placeholder="Search by name, type, or asset tag..."
+        [(ngModel)]="searchText" (ngModelChange)="onSearchChange()" />
+      <button class="clear-search-btn" *ngIf="searchText" (click)="searchText = ''; onSearchChange()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="type-filter-wrapper">
+      <span class="material-icons-outlined filter-icon">filter_list</span>
+      <select class="type-filter-select" [(ngModel)]="selectedTypeFilter" (ngModelChange)="onTypeFilterChange()">
+        <option value="">All Types</option>
+        <option *ngFor="let type of assetTypes" [value]="type.type_name">{{ type.type_name }}</option>
+      </select>
+    </div>
+    <button class="btn btn-sm btn-clear-filters" *ngIf="searchText || selectedTypeFilter" (click)="clearFilters()">
+      <span class="material-icons-outlined">filter_list_off</span>
+      Clear Filters
+    </button>
+    <div class="filter-results-count" *ngIf="searchText || selectedTypeFilter">
+      Showing {{ filteredAssets.length }} of {{ myAssets.length }} assets
+    </div>
+  </div>
+
+  <div class="card-body">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Subcategory Name</th>
+          <!-- <th class="text-center">Request ID</th> -->
+          <th>Allocated Date</th>
+          <th>Warranty Expiry</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let asset of paginatedAssets">
+          <td>
+            <span class="type-badge">{{ asset.type }}</span>
+          </td>
+          <td class="asset-name-cell">{{ asset.name }}</td>
+          <!-- <td class="text-center">
+            <span class="request-id-badge" *ngIf="asset.requestId">{{ asset.requestId }}</span>
+            <span class="text-muted" *ngIf="!asset.requestId">N/A</span>
+          </td> -->
+          <td>{{ asset.allocatedDate ? (asset.allocatedDate | date) : '-' }}</td>
+          <td>
+            <span [class.text-danger]="isExpiringSoon(asset.warrantyExpiry)">
+              {{ asset.warrantyExpiry | date }}
+            </span>
+          </td>
+        </tr>
+        <tr *ngIf="totalFilteredCount === 0 && myAssets.length > 0">
+          <td colspan="4" class="text-center text-muted p-24">
+            <div class="empty-filter-state">
+              <span class="material-icons-outlined empty-icon">search_off</span>
+              <p>No assets match your filters.</p>
+              <button class="btn btn-sm btn-outline-primary" (click)="clearFilters()">Clear Filters</button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="myAssets.length === 0">
+          <td colspan="4" class="text-center text-muted p-24">No assets currently assigned to you.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination Footer -->
+    <div class="pagination-footer" *ngIf="totalFilteredCount > 0">
+      <div class="pagination-info">
+        Showing {{ totalFilteredCount === 0 ? 0 : (currentPage - 1) * pageSize + 1 }} to {{ Math.min(currentPage *
+        pageSize, totalFilteredCount) }} of {{ totalFilteredCount }} assets
+      </div>
+      <div class="pagination-controls">
+        <button class="page-btn page-nav" [disabled]="currentPage === 1" (click)="goToPage(1)" title="First page">
+          <span class="material-icons-outlined">first_page</span>
+        </button>
+        <button class="page-btn page-nav" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)"
+          title="Previous page">
+          <span class="material-icons-outlined">chevron_left</span>
+        </button>
+
+        <ng-container *ngFor="let p of visiblePages">
+          <span class="page-ellipsis" *ngIf="p === '...'">…</span>
+          <button *ngIf="p !== '...'" class="page-btn" [class.active]="currentPage === p" (click)="goToPage(+p)">
+            {{ p }}
+          </button>
+        </ng-container>
+
+        <button class="page-btn page-nav" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)"
+          title="Next page">
+          <span class="material-icons-outlined">chevron_right</span>
+        </button>
+        <button class="page-btn page-nav" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)"
+          title="Last page">
+          <span class="material-icons-outlined">last_page</span>
+        </button>
+      </div>
+      <div class="pagination-page-indicator">
+        Page {{ currentPage }} of {{ totalPages }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Return Asset Modal -->
+<app-modal [isOpen]="isReturnModalOpen" [title]="'Return Asset'" (close)="closeModals()">
+  <form [formGroup]="actionForm" (ngSubmit)="submitRequest(RequestType.RETURN_ASSET)" *ngIf="selectedAsset">
+    <div class="asset-preview-card mb-24">
+      <div class="asset-info">
+        <div class="asset-tag">{{ selectedAsset.assetTag }}</div>
+        <div class="asset-name">{{ selectedAsset.name }}</div>
+        <div class="asset-meta">{{ selectedAsset.type }} &bull; {{ selectedAsset.category }}</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Reason for Return</label>
+      <textarea class="form-control" formControlName="justification" rows="4"
+        placeholder="Please provide a valid reason or justification for returning this asset..."></textarea>
+      <div class="error-msg"
+        *ngIf="actionForm.get('justification')?.touched && actionForm.get('justification')?.invalid">
+        Justification is mandatory (min 5 characters).
+      </div>
+    </div>
+
+    <div class="modal-actions mt-24">
+      <button type="button" class="btn btn-outline" (click)="closeModals()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="actionForm.invalid">Submit Return Request</button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- Extend Warranty Modal -->
+<app-modal [isOpen]="isWarrantyModalOpen" [title]="'Extend Warranty Request'" (close)="closeModals()">
+  <form [formGroup]="actionForm" (ngSubmit)="submitRequest(RequestType.EXTEND_WARRANTY)" *ngIf="selectedAsset">
+    <div class="asset-preview-card mb-24">
+      <div class="asset-info">
+        <div class="asset-tag">{{ selectedAsset.assetTag }}</div>
+        <div class="asset-name">{{ selectedAsset.name }}</div>
+        <div class="asset-meta">Current Expiry: {{ selectedAsset.warrantyExpiry | date }}</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Reason for Extension</label>
+      <textarea class="form-control" formControlName="justification" rows="4"
+        placeholder="Please provide a reason or justification for extending the warranty..."></textarea>
+      <div class="error-msg"
+        *ngIf="actionForm.get('justification')?.touched && actionForm.get('justification')?.invalid">
+        Justification is mandatory (min 5 characters).
+      </div>
+    </div>
+
+    <div class="modal-actions mt-24">
+      <button type="button" class="btn btn-outline" (click)="closeModals()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="actionForm.invalid">Submit Extension Request</button>
+    </div>
+  </form>
+</app-modal>

@@ -1,0 +1,45 @@
+{
+  "name": "ams",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test"
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/animations": "^16.2.0",
+    "@angular/cdk": "^16.2.0",
+    "@angular/common": "^16.2.12",
+    "@angular/compiler": "^16.2.12",
+    "@angular/core": "^16.2.12",
+    "@angular/forms": "^16.2.12",
+    "@angular/platform-browser": "^16.2.12",
+    "@angular/platform-browser-dynamic": "^16.2.0",
+    "@angular/router": "^16.2.12",
+    "@emailjs/browser": "^4.4.1",
+    "chart.js": "^4.4.0",
+    "ng2-charts": "^4.1.1",
+    "rxjs": "^7.8.2",
+    "socket.io-client": "^4.8.3",
+    "tslib": "^2.3.0",
+    "xlsx": "^0.18.5",
+    "zone.js": "^0.13.3"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^16.2.16",
+    "@angular/cli": "^16.2.16",
+    "@angular/compiler-cli": "^16.2.0",
+    "@types/jasmine": "~4.3.0",
+    "@types/node": "18.16.19",
+    "jasmine-core": "~4.6.0",
+    "karma": "~6.4.0",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.0",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "typescript": "~5.1.3"
+  }
+}

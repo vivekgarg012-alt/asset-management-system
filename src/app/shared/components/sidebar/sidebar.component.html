@@ -1,0 +1,42 @@
+<aside class="sidebar" [class.collapsed]="isCollapsed">
+  <div class="sidebar-header">
+    <div class="logo-container">
+      <img src="assets/images/adnate-logo.png" alt="ADNATE Logo" class="logo">
+    </div>
+  </div>
+
+
+  <nav class="sidebar-nav">
+    <ul>
+      <li *ngFor="let item of navItems" [class.active]="isActive(item.route)">
+        <a (click)="navigate(item.route)">
+          <span class="material-icons-outlined nav-icon">{{ item.icon }}</span>
+          <span class="nav-label" *ngIf="!isCollapsed">{{ item.label }}</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="theme-toggle" (click)="toggleTheme()">
+      <div class="toggle-btn" [class.active]="theme === 'light'">
+        <span class="material-icons-outlined">light_mode</span>
+        <span *ngIf="!isCollapsed">Light</span>
+      </div>
+      <div class="toggle-btn" [class.active]="theme === 'dark'">
+        <span class="material-icons-outlined">dark_mode</span>
+        <span *ngIf="!isCollapsed">Dark</span>
+      </div>
+    </div>
+    
+    <button class="collapse-btn" (click)="toggleCollapse()">
+      <span class="material-icons-outlined">{{ isCollapsed ? 'chevron_right' : 'chevron_left' }}</span>
+      <span *ngIf="!isCollapsed">Collapse</span>
+    </button>
+    
+    <button class="logout-btn" (click)="logout()">
+      <span class="material-icons-outlined">logout</span>
+      <span *ngIf="!isCollapsed">Logout</span>
+    </button>
+  </div>
+</aside>

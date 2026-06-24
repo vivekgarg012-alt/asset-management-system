@@ -1,0 +1,889 @@
+<div class="page-container">
+  <!-- Page Header -->
+  <div class="page-header mb-24">
+    <div>
+      <h2 class="page-title">User Management</h2>
+      <p class="page-subtitle">Manage all system users, roles and access</p>
+    </div>
+  </div>
+
+  <div class="tab-bar mb-16">
+    <div class="tab-bar-left">
+      <button class="tab-btn" [class.active]="activeTab === 'users'" (click)="setTab('users')">
+        <span class="material-icons-outlined">group</span>
+        All Users ({{ users.length }})
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'roles'" (click)="setTab('roles')">
+        <span class="material-icons-outlined">badge</span>
+        Roles ({{ roles.length }})
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'projects'" (click)="setTab('projects')">
+        <span class="material-icons-outlined">folder_open</span>
+        Projects ({{ projects.length }})
+      </button>
+      <button *ngIf="false" class="tab-btn" [class.active]="activeTab === 'assignments'" (click)="setTab('assignments')">
+        <span class="material-icons-outlined">assignment_ind</span>
+        Assign Assets ({{ allocations.length }})
+      </button>
+    </div>
+    <div class="tab-bar-right">
+      <button *ngIf="activeTab === 'users'" class="btn btn-primary add-user-btn" (click)="openAddUserModal()">
+        <span class="material-icons-outlined">person_add</span> Add User
+      </button>
+      <button *ngIf="activeTab === 'projects'" class="btn btn-primary add-user-btn" (click)="openAddProjectModal()">
+        <span class="material-icons-outlined">add</span> Add Project
+      </button>
+    </div>
+  </div>
+
+  <!-- Search & Filter Bar (below tabs) -->
+  <div class="search-filter-bar mb-24" *ngIf="activeTab !== 'roles'">
+    <div class="search-box user-search">
+      <span class="material-icons-outlined search-icon">search</span>
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Search..."
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="onSearchTermChange()"
+        style="padding-left: 40px;"
+      />
+    </div>
+    <select *ngIf="activeTab === 'users'" class="form-control user-filter" [(ngModel)]="selectedRole" (ngModelChange)="filterUsers()">
+      <option value="">All Roles</option>
+      <option *ngFor="let role of userRoles" [value]="role">{{ role }}</option>
+    </select>
+  </div>
+
+  <!-- Users Tab Content -->
+  <div *ngIf="activeTab === 'users'" class="animate-slide-up">
+    <!-- Users Table -->
+    <div class="card">
+      <div class="card-header">
+        <h3>All Users <span class="badge badge-blue" style="margin-left: 8px;">{{ filteredUsers.length }}</span></h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Asset Type</th>
+                <th>Status</th>
+                <th>Project</th>
+                <th>Assets</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let user of paginatedUsers">
+                <td>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="avatar-circle">{{ user.name.charAt(0) }}</div>
+                    <div>
+                      <div style="font-weight: 600;">{{ user.name }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>{{ user.email }}</td>
+                <td>
+                  <span class="badge" [ngClass]="getRoleBadgeClass(user.role)">{{ user.role }}</span>
+                </td>
+                <td>
+                  <span style="font-size: 13px; color: var(--text-primary);">
+                    {{ (user.role === assetManagerRoleName || user.role === assetTeamMemberRoleName) ? (user.assetTypeName || '—') : '—' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="user.isActive ? 'badge-green' : 'badge-default'">
+                    {{ user.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td>
+                  <span style="font-size: 13px; color: var(--text-primary);">{{ user.projectName || '—' }}</span>
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-outline" title="View Assets" (click)="openUserAssetsSidebar(user)">
+                    <span class="material-icons-outlined" style="font-size: 16px;">inventory_2</span>
+                  </button>
+                </td>
+                <td>
+                  <div style="display: flex; flex-direction: column; gap: 6px; min-width: 90px;">
+                    <button class="btn btn-sm btn-outline action-btn-wide" (click)="openEditModal(user)">
+                      Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline action-btn-wide" 
+                            [class.btn-status-inactive]="user.isActive"
+                            [class.btn-status-active]="!user.isActive"
+                            (click)="user.isActive ? openInactiveModal(user) : toggleUserActive(user)">
+                      {{ user.isActive ? 'Inactive' : 'Active' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="filteredUsers.length === 0">
+                <td colspan="8" style="text-align: center; padding: 40px; opacity: 0.5;">
+                  <span class="material-icons-outlined" style="font-size: 3rem; display: block; margin-bottom: 8px;">search_off</span>
+                  No users found
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-wrapper" *ngIf="filteredUsers.length > 0">
+          <div class="pagination-bar">
+            <div class="pagination-info">
+              Showing {{ getRangeStart() }} to {{ getRangeEnd() }} of {{ filteredUsers.length }} users
+            </div>
+            <div class="pagination-controls">
+              <button class="page-btn" [disabled]="currentPage === 1" (click)="previousPage()" title="Previous Page">
+                <span class="material-icons-outlined">chevron_left</span>
+              </button>
+              <button class="page-btn" 
+                      *ngFor="let page of pageNumbers" 
+                      [class.active]="page === currentPage"
+                      (click)="goToPage(page)">
+                {{ page }}
+              </button>
+              <button class="page-btn" [disabled]="currentPage === totalPages" (click)="nextPage()" title="Next Page">
+                <span class="material-icons-outlined">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Roles Tab Content -->
+  <div *ngIf="activeTab === 'roles'" class="animate-slide-up">
+    <div class="card">
+      <div class="card-header">
+        <h3>Role Management</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Role Name</th>
+                <th>Users</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let role of roles" (click)="role.isActive && openRoleMembersModal(role)" [style.cursor]="role.isActive ? 'pointer' : 'default'" class="hover-row">
+                <td><span style="font-weight: 600; color: #1a56db;">{{ role.name }}</span></td>
+                <td><span class="badge badge-blue">{{ role.userCount }}</span></td>
+                <td><span class="badge" [ngClass]="role.isActive ? 'badge-green' : 'badge-default'">
+                  {{ role.isActive ? 'Active' : 'Inactive' }}
+                </span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Projects Tab Content -->
+  <div *ngIf="activeTab === 'projects'" class="animate-slide-up">
+    <div class="card">
+      <div class="card-header">
+        <h3>Project Administration</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Team Lead</th>
+                <th>Status</th>
+                <th>Members</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let project of filteredProjects">
+                <td>{{ project.name }}</td>
+                <td>{{ project.teamLead }}</td>
+                <td><span class="badge" [ngClass]="project.status === 'Active' ? 'badge-green' : 'badge-default'">
+                  {{ project.status }}
+                </span></td>
+                <td>
+                  <a href="javascript:void(0)" (click)="openProjectMembersModal(project)" class="link-primary" style="font-weight: 600; text-decoration: underline;">
+                    {{ project.memberCount }}
+                  </a>
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-outline" 
+                          [title]="project.status === 'Active' ? 'Mark Completed' : 'Make Active'" 
+                          [style.color]="project.status === 'Active' ? '#10b981' : '#64748b'"
+                          (click)="toggleProjectStatus(project)">
+                    <span class="material-icons-outlined" style="font-size: 16px;">
+                      {{ project.status === 'Active' ? 'check_circle' : 'restore' }}
+                    </span>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="filteredProjects.length === 0">
+                <td colspan="5" style="text-align: center; padding: 40px; opacity: 0.5;">
+                  <span class="material-icons-outlined" style="font-size: 3rem; display: block; margin-bottom: 8px;">search_off</span>
+                  No projects found
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assignments Tab Content -->
+  <div *ngIf="activeTab === 'assignments'" class="animate-slide-up">
+    <div class="card">
+      <div class="card-header">
+        <h3>Asset Allocations</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Allocation ID</th>
+                <th>Asset Tag</th>
+                <th>Asset Name</th>
+                <th>Assigned To</th>
+                <th>Assigned By</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let a of allocations">
+                <td><span style="font-weight: 600; color: #6366f1;">{{ a.allocationId }}</span></td>
+                <td>{{ a.assetTag }}</td>
+                <td>{{ a.assetName }}</td>
+                <td>{{ a.userName }}</td>
+                <td>{{ a.allocatedBy }}</td>
+                <td>{{ a.allocationDate | date }}</td>
+                <td><span class="badge" [ngClass]="a.status === 'Active' ? 'badge-green' : (a.status === 'Returned' ? 'badge-blue' : 'badge-amber')">
+                  {{ a.status }}
+                </span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" *ngIf="showEditModal">
+  <div class="modal-container animate-slide-up" style="max-width: 560px;">
+    <div class="modal-header">
+      <h3><span class="material-icons-outlined" style="font-size: 20px; vertical-align: middle; margin-right: 8px; color: #6366f1;">edit</span>Edit User</h3>
+      <button class="btn-icon" (click)="closeEditModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body" *ngIf="editingUser">
+      <!-- User Identity (Read-only) -->
+      <div class="edit-user-identity">
+        <div class="avatar-circle" style="width: 42px; height: 42px; font-size: 16px;">{{ editingUser.name.charAt(0) }}</div>
+        <div>
+          <div style="font-weight: 700; font-size: 15px;">{{ editingUser.name }}</div>
+          <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">ID: {{ editingUser.id }}</div>
+        </div>
+      </div>
+
+      <!-- Email -->
+      <div class="form-group mb-16">
+        <label>Email Address</label>
+        <input type="email" class="form-control" 
+               [ngModel]="editUserForm.email" 
+               (ngModelChange)="onEditUserEmailChange($event)" 
+               placeholder="Enter email address">
+        <div class="field-error" *ngIf="editUserEmailError">{{ editUserEmailError }}</div>
+      </div>
+
+      <!-- Role -->
+      <div class="form-group mb-16">
+        <label>Role</label>
+        <select class="form-control" 
+                [ngModel]="editUserForm.roleName" 
+                (ngModelChange)="onEditUserRoleChange($event)">
+          <option value="">Select a role</option>
+          <option *ngFor="let role of roles" [value]="role.name">{{ role.name }}</option>
+        </select>
+      </div>
+
+      <!-- Conditional: Project (for Employee / Team Lead) -->
+      <div class="form-group mb-16" *ngIf="editRequiresProject">
+        <label>Project</label>
+        <select class="form-control" [(ngModel)]="editUserForm.projectId">
+          <option value="">Keep current / Select a project</option>
+          <option *ngFor="let project of availableProjectsForEditUser" [value]="project.id">{{ project.name }}</option>
+        </select>
+        <div class="field-error" *ngIf="editUserForm.roleName === teamLeadRoleName && availableProjectsForEditUser.length === 0">
+          All projects have Team Lead, add new projects to assign a team lead.
+        </div>
+      </div>
+
+      <!-- Conditional: Asset Type (for Asset Manager / Asset Team) -->
+      <div class="form-group mb-16" *ngIf="editRequiresAssetType">
+        <label>Asset Type</label>
+        <div class="checkbox-group">
+          <div class="checkbox-item" 
+               *ngFor="let assetType of assetTypes"
+               [class.checked]="isAssetTypeSelected(assetType.id)"
+               (click)="toggleEditAssetType(assetType.id)">
+            <input type="checkbox" 
+                   [checked]="isAssetTypeSelected(assetType.id)"
+                   (change)="$event.stopPropagation(); toggleEditAssetType(assetType.id)">
+            <span>{{ assetType.name }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assigned Assets (Read-only Section) -->
+      <div class="edit-assets-section">
+        <div class="edit-assets-header">
+          <span class="material-icons-outlined" style="font-size: 18px; color: #6366f1;">inventory_2</span>
+          <span>Assigned Assets</span>
+          <span class="count-chip">{{ editUserAssignedAssets.length }}</span>
+        </div>
+
+        <!-- Loading -->
+        <div class="edit-assets-loading" *ngIf="isLoadingEditAssets">
+          <div class="spinner-sm"></div>
+          <span>Loading assets...</span>
+        </div>
+
+        <!-- Assets List -->
+        <div class="edit-assets-list" *ngIf="!isLoadingEditAssets && editUserAssignedAssets.length > 0">
+          <div class="edit-asset-chip" *ngFor="let asset of editUserAssignedAssets">
+            <div class="chip-icon">
+              <span class="material-icons-outlined">devices</span>
+            </div>
+            <div class="chip-info">
+              <span class="chip-name">{{ asset.assetName }}</span>
+              <span class="chip-meta">{{ asset.assetType }} · {{ asset.subCategory }}</span>
+            </div>
+            <span class="chip-id">{{ asset.assetId }}</span>
+          </div>
+        </div>
+
+        <!-- No Assets -->
+        <div class="edit-assets-empty" *ngIf="!isLoadingEditAssets && editUserAssignedAssets.length === 0">
+          <span class="material-icons-outlined" style="font-size: 28px; opacity: 0.2;">search_off</span>
+          <span>No assets currently assigned</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" [disabled]="isSavingEdit" (click)="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" 
+              [disabled]="!canSaveEditUser" 
+              (click)="saveUser()">
+        {{ isSavingEdit ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Inactive Modal -->
+  <div class="modal-overlay" *ngIf="showInactiveModal">
+  <div class="modal-container animate-slide-up" style="max-width: 400px;">
+    <div class="modal-header">
+      <h3>Confirm Action</h3>
+      <button class="btn-icon" (click)="closeInactiveModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body" *ngIf="userToDeactivate">
+      <p>Are you sure you want to mark <strong>{{ userToDeactivate.name }}</strong> as {{ userToDeactivate.isActive ? 'inactive' : 'active' }}?</p>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;">
+        {{ userToDeactivate.isActive
+          ? 'They will no longer be able to log in or be assigned new assets.'
+          : 'They will be able to log in and receive new asset assignments again.' }}
+      </p>
+
+      <div *ngIf="userToDeactivate.isActive && assetsToRelease.length > 0" style="margin-top: 16px;">
+        <div style="font-size: 13px; font-weight: 600; color: #ef4444; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+          <span class="material-icons-outlined" style="font-size: 18px;">warning</span>
+          The following assets will be released:
+        </div>
+        <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 4px;">
+          <div *ngFor="let asset of assetsToRelease" style="padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between;">
+            <span style="font-weight: 500;">{{ asset.asset_name }}</span>
+            <span style="color: var(--text-secondary);">{{ asset.asset_id }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="isCheckingAssetsBeforeDeactivate" style="margin-top: 16px; text-align: center; color: var(--text-secondary); font-size: 13px;">
+        <div class="spinner-sm" style="display: inline-block; margin-right: 8px;"></div>
+        Checking for assigned assets...
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" [disabled]="isUpdatingUserStatus" (click)="closeInactiveModal()">Cancel</button>
+      <button
+        class="btn btn-primary"
+        [disabled]="isUpdatingUserStatus"
+        [style.background-color]="userToDeactivate?.isActive ? '#ef4444' : '#10b981'"
+        [style.border-color]="userToDeactivate?.isActive ? '#ef4444' : '#10b981'"
+        (click)="confirmInactive()">
+        {{ isUpdatingUserStatus ? 'Updating...' : (userToDeactivate?.isActive ? 'Yes, Make Inactive' : 'Yes, Make Active') }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- User Assets Modal -->
+<div class="modal-overlay" *ngIf="showAssetsModal">
+  <div class="modal-container animate-slide-up" style="max-width: 760px;">
+    <div class="modal-header">
+      <h3>Assigned Assets</h3>
+      <button class="btn-icon" (click)="closeAssetsModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="selectedUser as user" class="mb-16">
+        <div style="font-weight: 600;">{{ user.name }}</div>
+        <div style="font-size: 13px; color: var(--text-secondary);">{{ user.email }}</div>
+      </div>
+
+      <div *ngIf="selectedUserAssets.length > 0; else noAssets">
+        <div class="asset-list">
+          <div class="asset-item" *ngFor="let asset of selectedUserAssets">
+            <div>
+              <div class="asset-name">{{ asset.name }}</div>
+              <div class="asset-meta">{{ asset.assetTag }} | {{ asset.category }} | {{ asset.type }}</div>
+            </div>
+            <span class="badge"
+                  [class.badge-green]="asset.status === 'Available'"
+                  [class.badge-blue]="asset.status === 'Allocated'"
+                  [class.badge-amber]="asset.status !== 'Available' && asset.status !== 'Allocated'">
+              {{ asset.status }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noAssets>
+        <div style="text-align: center; padding: 32px; opacity: 0.7;">
+          <span class="material-icons-outlined" style="font-size: 2.5rem; display: block; margin-bottom: 8px;">inventory_2</span>
+          No assets assigned to this user
+        </div>
+      </ng-template>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAssetsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-overlay" *ngIf="showAddUserModal">
+  <div class="modal-container animate-slide-up" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>Add New User</h3>
+      <button class="btn-icon" (click)="closeAddUserModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group mb-16">
+        <label>Full Name</label>
+        <input type="text" class="form-control" [(ngModel)]="newUser.name" placeholder="Enter full name">
+      </div>
+      <div class="form-group mb-16">
+        <label>Email Address</label>
+        <input type="email" class="form-control" [ngModel]="newUser.email" (ngModelChange)="onAddUserEmailChange($event)" placeholder="Enter email address">
+        <div class="field-error" *ngIf="addUserEmailError">{{ addUserEmailError }}</div>
+      </div>
+      <div class="form-group mb-16">
+        <label>Password (Auto-generated)</label>
+        <input type="text" class="form-control" [(ngModel)]="newUser.password" placeholder="Password will be generated">
+        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">You can modify this auto-generated password if needed.</div>
+      </div>
+      <div class="form-group mb-16">
+        <label>Role</label>
+        <select class="form-control" [(ngModel)]="newUser.roleName" (ngModelChange)="onAddUserRoleChange($event)">
+          <option value="">Select a role</option>
+          <option *ngFor="let role of roles" [value]="role.name">{{ role.name }}</option>
+        </select>
+      </div>
+      <div class="form-group mb-16" *ngIf="shouldShowProjectDropdown">
+        <label>Project</label>
+        <select class="form-control" [(ngModel)]="newUser.projectId">
+          <option value="">Select a project</option>
+          <option *ngFor="let project of availableProjectsForNewUser" [value]="project.id">{{ project.name }}</option>
+        </select>
+        <div class="field-error" *ngIf="newUser.roleName === teamLeadRoleName && availableTeamLeadProjects.length === 0">
+          All projects have Team Lead, add new projects to assign a team lead.
+        </div>
+      </div>
+      <div class="form-group mb-16" *ngIf="shouldShowAssetTypeDropdown">
+        <label>Asset Type</label>
+        <select class="form-control" [(ngModel)]="newUser.assetTypeId">
+          <option value="">Select an asset type</option>
+          <option *ngFor="let assetType of availableAssetTypesForNewUser" [value]="assetType.id">{{ assetType.name }}</option>
+        </select>
+        <div class="field-error" *ngIf="newUser.roleName === assetManagerRoleName && availableAssetTypesForNewUser.length === 0">
+          No asset type is available without an assigned asset manager.
+        </div>
+      </div>
+      <div class="field-error" *ngIf="requiresAssetTypeSelection && assetTypes.length === 0" style="margin-top: 10px; padding: 12px; border-radius: 8px; background: #fff1f2; color: #e11d48; border: 1px solid #fda4af;">
+        <span class="material-icons-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">error_outline</span>
+        Cannot add this user role because no Asset Types are defined. Please add Asset Types in Master Data first.
+      </div>
+      <div class="field-error" *ngIf="requiresProjectSelection && projects.length === 0" style="margin-top: 10px; padding: 12px; border-radius: 8px; background: #fff1f2; color: #e11d48; border: 1px solid #fda4af;">
+        <span class="material-icons-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">error_outline</span>
+        Cannot add this user role because no Projects are defined. Please add Projects first.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAddUserModal()">Cancel</button>
+      <button
+        class="btn btn-primary"
+        [disabled]="!canSaveNewUser"
+        (click)="saveNewUser()">
+        {{ isSavingUser ? 'Saving...' : 'Save User' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Add Role Modal -->
+<div class="modal-overlay" *ngIf="showAddRoleModal">
+  <div class="modal-container animate-slide-up" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>Add New Role</h3>
+      <button class="btn-icon" (click)="closeAddRoleModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group mb-16">
+        <label>Role Name</label>
+        <input type="text" class="form-control" [(ngModel)]="newRole.name" placeholder="Enter role name">
+      </div>
+      <div class="form-group mb-16">
+        <label>Role Code</label>
+        <input type="text" class="form-control" [(ngModel)]="newRole.code" placeholder="Enter role code (e.g., ADMIN)">
+      </div>
+      <div class="form-group mb-16">
+        <label>Description</label>
+        <textarea class="form-control" [(ngModel)]="newRole.description" placeholder="Role description and permissions" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAddRoleModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="closeAddRoleModal()">Save Role</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Project Modal -->
+<div class="modal-overlay" *ngIf="showAddProjectModal">
+  <div class="modal-container animate-slide-up" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>Add New Project</h3>
+      <button class="btn-icon" (click)="closeAddProjectModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group mb-16">
+        <label>Project Name</label>
+        <input type="text" class="form-control" [(ngModel)]="newProject.name" (ngModelChange)="addProjectError = ''" placeholder="Enter project name">
+        <div class="field-error" *ngIf="addProjectError">{{ addProjectError }}</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAddProjectModal()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="isSavingProject || !newProject.name?.trim()" (click)="saveProject()">
+        {{ isSavingProject ? 'Saving...' : 'Save Project' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Asset Modal -->
+<div class="modal-overlay" *ngIf="showAssignAssetModal">
+  <div class="modal-container animate-slide-up" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>Assign Asset to User</h3>
+      <button class="btn-icon" (click)="closeAssignAssetModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group mb-16">
+        <label>Select User</label>
+        <select class="form-control" [(ngModel)]="newAllocation.userId">
+          <option value="">Select a user...</option>
+          <option *ngFor="let user of users" [value]="user.id">{{ user.name }} ({{ user.team }})</option>
+        </select>
+      </div>
+      <div class="form-group mb-16">
+        <label>Select Asset</label>
+        <select class="form-control" [(ngModel)]="newAllocation.assetId">
+          <option value="">Select an asset...</option>
+          <option value="AST001">Dell Latitude 5540</option>
+          <option value="AST002">MacBook Pro 14"</option>
+          <option value="AST003">Monitor LG 27"</option>
+        </select>
+      </div>
+      <div class="form-group mb-16">
+        <label>Department</label>
+        <input type="text" class="form-control" [(ngModel)]="newAllocation.department" placeholder="Enter user department">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeAssignAssetModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="closeAssignAssetModal()">Assign Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Assets Right Sidebar -->
+<div class="right-sidebar-overlay" *ngIf="showUserAssetsSidebar" (click)="closeUserAssetsSidebar()"></div>
+<div class="right-sidebar" [class.show]="showUserAssetsSidebar">
+  <div class="sidebar-header">
+    <div class="header-main">
+      <div class="user-brief">
+        <div class="avatar-sm">{{ selectedSidebarUser?.name?.charAt(0) }}</div>
+        <div style="flex: 1;">
+          <h4>{{ selectedSidebarUser?.name }}</h4>
+          <p>{{ selectedSidebarUser?.email }}</p>
+        </div>
+      </div>
+      <button class="btn-icon" (click)="closeUserAssetsSidebar()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="sidebar-content">
+    <div class="section-title">
+      <span>Assigned Assets</span>
+      <span class="count-badge">{{ userAssignedAssets.length }}</span>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="isLoadingUserAssets">
+      <div class="spinner"></div>
+      <p>Fetching assigned assets...</p>
+    </div>
+
+    <!-- Assets List -->
+    <div class="assets-list" *ngIf="!isLoadingUserAssets && userAssignedAssets.length > 0">
+      <div class="asset-item" *ngFor="let asset of userAssignedAssets">
+        <div class="asset-icon">
+          <span class="material-icons-outlined">inventory_2</span>
+        </div>
+        <div class="asset-details">
+          <div class="asset-name">{{ asset.assetName }}</div>
+          <div class="asset-meta">
+            <span>{{ asset.assetType }}</span>
+            <span class="dot"></span>
+            <span>{{ asset.subCategory }}</span>
+          </div>
+          <div class="asset-id">{{ asset.assetId }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-assets" *ngIf="!isLoadingUserAssets && userAssignedAssets.length === 0">
+      <div class="empty-icon">
+        <span class="material-icons-outlined">search_off</span>
+      </div>
+      <h5>No Assets Assigned</h5>
+      <p>This user currently has no assets allocated to them.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Project Members Modal -->
+<div class="modal-overlay" *ngIf="showProjectMembersModal">
+  <div class="modal-container animate-slide-up" style="max-width: 650px;">
+    <div class="modal-header">
+      <h3>Project Members: {{ selectedProjectForMembers?.name }}</h3>
+      <button class="btn-icon" (click)="closeProjectMembersModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body p-0">
+      <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table mb-0">
+          <thead class="sticky-top">
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let member of projectMembersList">
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="avatar-circle">{{ member.name.charAt(0) }}</div>
+                  <span style="font-weight: 600;">{{ member.name }}</span>
+                </div>
+              </td>
+              <td>{{ member.email }}</td>
+              <td><span class="badge" [ngClass]="getRoleBadgeClass(member.role)">{{ member.role }}</span></td>
+              <td>
+                <span class="badge" [ngClass]="member.isActive ? 'badge-green' : 'badge-default'">
+                  {{ member.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+            </tr>
+             <tr *ngIf="projectMembersList.length === 0">
+              <td colspan="4" style="text-align: center; padding: 40px; opacity: 0.5;">
+                <span class="material-icons-outlined" style="font-size: 3rem; display: block; margin-bottom: 8px;">groups</span>
+                No active members found for this project
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 16px; border-top: 1px solid var(--border);">
+      <button class="btn btn-outline" (click)="closeProjectMembersModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Role Members Modal -->
+<div class="modal-overlay" *ngIf="showRoleMembersModal">
+  <div class="modal-container animate-slide-up" style="max-width: 700px;">
+    <div class="modal-header">
+      <div>
+         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8;">Role Members</span>
+         <h3 style="margin: 0; color: #1e293b;">{{ selectedRoleForMembers?.name }}</h3>
+      </div>
+      <button class="btn-icon" (click)="closeRoleMembersModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body p-0">
+      <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+        <table class="table mb-0">
+          <thead class="sticky-top">
+            <tr>
+              <th>User</th>
+              <th *ngIf="selectedRoleForMembers?.name === assetManagerRoleName || selectedRoleForMembers?.name === assetTeamMemberRoleName">Asset Category</th>
+              <th>Email</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let member of roleMembersList">
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="avatar-circle" [style.background-color]="member.isActive ? '#2563eb' : '#cbd5e1'">{{ member.name.charAt(0) }}</div>
+                  <div>
+                     <div style="font-weight: 700; color: #1e293b;">{{ member.name }}</div>
+                     <div style="font-size: 11px; color: #64748b;">ID: {{ member.id }}</div>
+                  </div>
+                </div>
+              </td>
+              <td *ngIf="selectedRoleForMembers?.name === assetManagerRoleName || selectedRoleForMembers?.name === assetTeamMemberRoleName">
+                 <span class="badge badge-blue" *ngIf="member.assetTypeName">{{ member.assetTypeName }}</span>
+                 <span class="text-muted" *ngIf="!member.assetTypeName">—</span>
+              </td>
+              <td>{{ member.email }}</td>
+              <td>
+                <span class="badge" [ngClass]="($any(member) && $any(member).isActive) ? 'badge-green' : 'badge-default'">
+                  {{ ($any(member) && $any(member).isActive) ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="roleMembersList.length === 0">
+              <td colspan="4" style="text-align: center; padding: 40px; opacity: 0.5;">
+                <span class="material-icons-outlined" style="font-size: 3rem; display: block; margin-bottom: 8px;">groups</span>
+                No users found with this role
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" (click)="closeRoleMembersModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" *ngIf="showChangePasswordModal">
+  <div class="modal-container animate-slide-up" style="max-width: 450px;">
+    <div class="modal-header">
+      <h3><span class="material-icons-outlined" style="font-size: 20px; vertical-align: middle; margin-right: 8px; color: #6366f1;">lock_reset</span>Change Password</h3>
+      <button class="btn-icon" (click)="closeChangePasswordModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body" *ngIf="passwordChangeUser">
+      <div class="edit-user-identity" style="margin-bottom: 20px;">
+        <div class="avatar-circle" style="width: 42px; height: 42px; font-size: 16px;">{{ passwordChangeUser.name.charAt(0) || 'U' }}</div>
+        <div>
+          <div style="font-weight: 700; font-size: 15px;">{{ passwordChangeUser.name }}</div>
+          <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">{{ passwordChangeUser.email }}</div>
+        </div>
+      </div>
+
+      <div class="form-group mb-16">
+        <label>New Password</label>
+        <input type="password" name="newPassword" class="form-control" [value]="newPassword" (input)="newPassword = $any($event.target).value" placeholder="Enter new password (min. 8 characters)">
+        <div class="field-error" *ngIf="passwordError" style="margin-top: 8px;">{{ passwordError }}</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" [disabled]="isSavingPassword" (click)="closeChangePasswordModal()">Cancel</button>
+      <button class="btn btn-primary" 
+              [disabled]="isSavingPassword || newPassword.length < 8" 
+              (click)="saveNewPassword()">
+        {{ isSavingPassword ? 'Saving...' : 'Update Password' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic Confirmation Modal -->
+<div class="modal-overlay" *ngIf="showConfirmModal">
+  <div class="modal-container animate-slide-up confirmation-modal" style="max-width: 450px;">
+    <div class="modal-header">
+      <div [class.header-icon-danger]="!showConfirmAction" [class.header-icon-primary]="showConfirmAction">
+        <span class="material-icons-outlined">{{ showConfirmAction ? 'help_outline' : 'warning' }}</span>
+      </div>
+      <h3>{{ confirmTitle }}</h3>
+      <button class="btn-icon" (click)="closeConfirmModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body text-center py-24">
+      <p class="confirm-message" style="margin: 0; color: #64748b; font-size: 1.1rem; line-height: 1.5;">{{ confirmMessage }}</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeConfirmModal()">{{ showConfirmAction ? 'Cancel' : 'Close' }}</button>
+      <button class="btn" [class.btn-primary]="showConfirmAction" (click)="handleConfirm()" *ngIf="showConfirmAction">
+        {{ confirmBtnText }}
+      </button>
+    </div>
+  </div>
+</div>

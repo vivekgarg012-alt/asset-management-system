@@ -1,0 +1,25 @@
+<div class="layout-container">
+  <app-sidebar #sidebar></app-sidebar>
+  <div class="main-content" [class.sidebar-collapsed]="sidebar.isCollapsed">
+    <app-header></app-header>
+    <div class="content-area">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+
+  <!-- Global Toast Component -->
+  <div class="toast-container" *ngIf="toast$ | async as toast">
+    <div class="toast-item" [ngClass]="toast.type">
+      <div class="toast-icon">
+        <span class="material-icons">
+          {{ toast.type === 'success' ? 'check_circle' : 
+             toast.type === 'error' ? 'error' : 
+             toast.type === 'warning' ? 'warning' : 'info' }}
+        </span>
+      </div>
+      <div class="toast-content">
+        <div class="toast-message">{{ toast.message }}</div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,34 @@
+{
+  "/com.eibus.web.soap.Gateway.wcp": {
+    "target": "http://43.242.214.239:81/home/training2025/",
+    "secure": false,
+    "logLevel": "debug",
+    "changeOrigin": true,
+    "timeout": 3600000,
+    "proxyTimeout": 3600000
+  },
+  "/com.eibus.sso.web.authentication.PreLoginInfo.wcp": {
+    "target": "http://43.242.214.239:81/home/training2025/",
+    "secure": false,
+    "logLevel": "debug",
+    "changeOrigin": true,
+    "timeout": 3600000,
+    "proxyTimeout": 3600000
+  },
+  "/home/training2025/shared/": {
+    "target": "http://43.242.214.239:81/",
+    "secure": false,
+    "logLevel": "debug",
+    "changeOrigin": true,
+    "timeout": 3600000,
+    "proxyTimeout": 3600000
+  },
+  "/cordys/": {
+    "target": "http://43.242.214.239:81/",
+    "secure": false,
+    "logLevel": "debug",
+    "changeOrigin": true,
+    "timeout": 3600000,
+    "proxyTimeout": 3600000
+  }
+}

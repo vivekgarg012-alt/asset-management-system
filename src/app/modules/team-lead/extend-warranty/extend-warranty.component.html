@@ -1,0 +1,48 @@
+<div class="card animate-fade-in" style="max-width: 800px; margin: 0 auto; overflow: hidden;">
+  <div class="card-header" style="background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 60%, #4299e1 100%); color: white; border: none; padding: 20px 24px;">
+    <h3 class="m-0" style="color: white;">Extend Warranty</h3>
+    <p style="color: #e2e8f0; margin-top: 8px; margin-bottom: 0;">Submit a request to extend the warranty for your eligible assets.</p>
+  </div>
+  <div class="card-body">
+    <form [formGroup]="warrantyForm" (ngSubmit)="onSubmit()">
+      <div class="form-group mb-16">
+        <label class="form-label">Select Asset for Warranty Extension *</label>
+        <select formControlName="assetId" class="form-control" (change)="onAssetSelect()">
+          <option value="" disabled>Select Asset</option>
+          <option *ngFor="let asset of eligibleAssets" [value]="asset.id">
+            {{ asset.assetTag }} - {{ asset.name }} (Expires: {{ asset.warrantyExpiry | date }})
+          </option>
+        </select>
+        <div *ngIf="isLoading" class="mt-8 text-sm text-primary">
+            <div class="spinner-sm"></div> Checking your assets...
+        </div>
+        <p *ngIf="!isLoading && eligibleAssets.length === 0" class="text-warning text-sm mt-8">
+          No assets are eligible for warranty extension at this time (only those expiring within 1 year).
+        </p>
+      </div>
+
+      <div *ngIf="selectedAsset" class="selected-asset-details mb-24 animate-slide-up">
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="label">Current Warranty Expiry:</span>
+            <span class="value text-danger">{{ selectedAsset.warrantyExpiry | date }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Serial Number:</span>
+            <span class="value">{{ selectedAsset.serialNumber || 'N/A' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group mb-24">
+        <label class="form-label">Justification for Extension *</label>
+        <textarea formControlName="justification" class="form-control" placeholder="Please explain why you need to extend the warranty..." rows="4"></textarea>
+      </div>
+
+      <div class="mt-24 pt-16" style="border-top: 1px solid #edf2f7; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" routerLink="/team-lead/my-requests">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="warrantyForm.invalid || !selectedAsset">Submit Extension Request</button>
+      </div>
+    </form>
+  </div>
+</div>

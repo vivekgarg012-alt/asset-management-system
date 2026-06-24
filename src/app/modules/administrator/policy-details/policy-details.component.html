@@ -1,0 +1,323 @@
+<div class="page-container">
+  <div class="page-header mb-24">
+    <div class="title-wrapper">
+      <h2 class="page-title">Policy Details</h2>
+      <p class="page-subtitle">Manage organizational asset policies, warranties, and notification settings</p>
+    </div>
+    <div class="action-wrapper">
+      <button class="btn btn-primary add-user-btn" (click)="onAddPolicy()">
+        <span class="material-icons-outlined">add</span>
+        <span>Add New Policy</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-grid mb-24">
+    <div class="stat-card">
+      <div class="stat-icon total">
+        <i class="material-icons">description</i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Total Policies</span>
+        <span class="stat-value">{{ stats.totalPolicies }}</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon active">
+        <i class="material-icons">check_circle</i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Active Policies</span>
+        <span class="stat-value">{{ stats.activePolicies }}</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon inactive">
+        <i class="material-icons">cancel</i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Inactive Policies</span>
+        <span class="stat-value">{{ stats.inactivePolicies }}</span>
+      </div>
+    </div>
+    <div class="stat-card expiry-soon">
+      <div class="stat-icon expiry">
+        <i class="material-icons">warning</i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Warranty Expiry Coming Soon</span>
+        <span class="stat-value">{{ stats.expiringSoon }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs-container mb-16">
+    <button class="modern-tab" [class.active]="activeTab === 'registry'" (click)="switchTab('registry')">
+      <span class="material-icons-outlined">fact_check</span>
+      Active Policy Registry
+    </button>
+    <button class="modern-tab" [class.active]="activeTab === 'inactive'" (click)="switchTab('inactive')">
+      <span class="material-icons-outlined">history</span>
+      Inactive Policies
+    </button>
+  </div>
+
+  <div class="card main-table-card">
+    <div class="card-header">
+      <div class="header-content">
+        <h3>{{ activeTab === 'registry' ? 'Policy Registry' : 'Inactive Policies' }}</h3>
+        <span class="count-badge">{{ filteredPolicies.length }} total</span>
+      </div>
+      <div class="table-controls">
+        <div class="search-box">
+          <span class="material-icons-outlined">search</span>
+          <input type="text" [(ngModel)]="searchQuery" (input)="onSearchChange()" placeholder="Search policies...">
+        </div>
+        <div class="filter-box" *ngIf="activeTab === 'registry'">
+          <select [(ngModel)]="statusFilter" (change)="onFilterChange()" class="form-control">
+            <option value="All">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Policy ID</th>
+              <th>Policy Name</th>
+              <th>Purchase Date</th>
+              <th>Expiry Date</th>
+              <th>Recipients</th>
+              <th>Status</th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let policy of pagedPolicies" class="hover-row">
+              <td class="id-col"><span>{{ policy.policyId }}</span></td>
+              <td class="name-col">
+                <span class="policy-title">{{ policy.name }}</span>
+              </td>
+              <td class="date-col">{{ policy.effectiveDate | date:'mediumDate' }}</td>
+              <td class="date-col">{{ policy.expiryDate | date:'mediumDate' }}</td>
+              <td class="recipients-col">
+                <div class="email-chips-preview" *ngIf="policy.toMailId">
+                  <span class="preview-chip" *ngFor="let email of getEmailList(policy.toMailId) | slice:0:2">
+                    {{ email }}
+                  </span>
+                  <span class="more-badge" *ngIf="getEmailList(policy.toMailId).length > 2">
+                    +{{ getEmailList(policy.toMailId).length - 2 }}
+                  </span>
+                </div>
+                <span class="empty-val" *ngIf="!policy.toMailId">—</span>
+              </td>
+              <td class="status-col">
+                <span class="badge" [ngClass]="getStatusBadgeClass(policy.status)">
+                  {{ policy.status }}
+                </span>
+              </td>
+              <td class="actions-col text-center">
+                <div class="action-buttons">
+                  <button class="action-btn view" (click)="onViewPolicy(policy)" title="View Details">
+                    <span class="material-icons-outlined">visibility</span>
+                  </button>
+                  <button class="action-btn edit" (click)="onEditPolicy(policy)" title="Edit Policy">
+                    <span class="material-icons-outlined">edit</span>
+                  </button>
+                  <button class="action-btn" [ngClass]="policy.status.toLowerCase() === 'active' ? 'inactive' : 'active'" (click)="onTogglePolicyStatus(policy)" [title]="policy.status.toLowerCase() === 'active' ? 'Deactivate Policy' : 'Activate Policy'">
+                    <span class="material-icons-outlined">{{ policy.status.toLowerCase() === 'active' ? 'block' : 'check_circle' }}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="filteredPolicies.length === 0 && !loading">
+              <td colspan="7" class="empty-state">
+                <div class="empty-content">
+                  <span class="material-icons-outlined">search_off</span>
+                  <p>No policy records found matching your criteria.</p>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="loading">
+              <td colspan="7" class="loading-state">
+                <div class="loader-wrapper">
+                  <div class="spinner"></div>
+                  <span>Fetching records...</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Pagination -->
+      <div class="card-footer" *ngIf="filteredPolicies.length > 0">
+        <div class="pagination-info">
+          Showing {{ startIndex }} to {{ endIndex }} of {{ filteredPolicies.length }} entries
+        </div>
+        <div class="pagination-controls">
+          <button class="btn btn-outline btn-sm" [disabled]="currentPage === 1" (click)="prevPage()">Previous</button>
+          <span class="page-current">Page {{ currentPage }} of {{ totalPages }}</span>
+          <button class="btn btn-outline btn-sm" [disabled]="currentPage === totalPages" (click)="nextPage()">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modern Policy Modal -->
+<div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
+  <div class="modal-container modern-modal animate-slide-up" (click)="$event.stopPropagation()">
+    <div class="modal-header-modern">
+      <div class="header-left">
+        <div class="icon-circle">
+          <span class="material-icons-outlined">{{ isViewOnly ? 'description' : (isEditMode ? 'edit_note' : 'add_task') }}</span>
+        </div>
+        <div class="header-titles">
+          <h3>{{ modalTitle }}</h3>
+          <p>{{ isViewOnly ? 'Viewing stored policy configuration' : (isEditMode ? 'Modify existing policy parameters' : 'Configure new policy parameters and alerts') }}</p>
+        </div>
+      </div>
+      <button class="close-btn" (click)="closeAddModal()">
+        <span class="material-icons-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body-modern">
+      <div class="modal-sections">
+        <!-- Section 1: Policy Information -->
+        <div class="modal-section">
+          <div class="section-header">
+            <span class="material-icons-outlined">info</span>
+            <h4>Policy Information</h4>
+          </div>
+          <div class="section-content grid-2">
+            <div class="form-group full-width">
+              <label>Policy Name</label>
+              <div class="input-wrapper">
+                <input type="text" [(ngModel)]="newPolicy.policy_name" 
+                       [disabled]="isViewOnly || isEditMode" 
+                       [class.error-border]="errors.policy_name"
+                       [style.background]="isEditMode ? '#f1f5f9' : ''"
+                       placeholder="e.g. Corporate Hardware Warranty 2026">
+                <span class="input-icon material-icons-outlined">label</span>
+              </div>
+              <span class="error-msg" *ngIf="errors.policy_name">{{ errors.policy_name }}</span>
+              <span class="hint-text" *ngIf="isEditMode">Policy name cannot be changed after creation.</span>
+            </div>
+
+            <!-- Status Toggle (Only in Add Mode) -->
+            <div class="form-group full-width" *ngIf="!isEditMode && !isViewOnly">
+              <div class="toggle-control-wrapper">
+                <div class="toggle-info">
+                  <span class="toggle-label">Initial Policy Status: <span [style.color]="newPolicy.flag === 'Active' ? '#10b981' : '#ef4444'">{{ newPolicy.flag }}</span></span>
+                  <span class="toggle-hint">Set to Active to immediately enforce this policy, or Inactive to save as a draft.</span>
+                </div>
+                <label class="modern-toggle">
+                  <input type="checkbox" [checked]="newPolicy.flag === 'Active'" (change)="onFlagToggle($event)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Validity -->
+        <div class="modal-section">
+          <div class="section-header">
+            <span class="material-icons-outlined">calendar_today</span>
+            <h4>Validity Periods</h4>
+          </div>
+          <div class="section-content grid-2">
+            <div class="form-group">
+              <label>Purchase Date</label>
+              <div class="input-wrapper">
+                <input type="date" [(ngModel)]="newPolicy.policy_purchase_date" 
+                       [disabled]="isViewOnly" 
+                       [class.error-border]="errors.purchase_date"
+                       [max]="getTodayDate()">
+                <span class="input-icon material-icons-outlined">event</span>
+              </div>
+              <span class="error-msg" *ngIf="errors.purchase_date">{{ errors.purchase_date }}</span>
+            </div>
+            <div class="form-group">
+              <label>Expiry Date</label>
+              <div class="input-wrapper">
+                <input type="date" [(ngModel)]="newPolicy.policy_expiry_date" 
+                       [disabled]="isViewOnly" 
+                       [class.error-border]="errors.expiry_date"
+                       [min]="getMinExpiryDate()">
+                <span class="input-icon material-icons-outlined">event_busy</span>
+              </div>
+              <span class="error-msg" *ngIf="errors.expiry_date">{{ errors.expiry_date }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Notification Settings -->
+        <div class="modal-section">
+          <div class="section-header">
+            <span class="material-icons-outlined">notifications_active</span>
+            <h4>Alert Settings</h4>
+          </div>
+          <div class="section-content grid-2">
+            <div class="form-group full-width">
+              <label>From Email</label>
+              <div class="input-wrapper">
+                <input type="email" [(ngModel)]="newPolicy.from_mailid" 
+                       [disabled]="isViewOnly"
+                       placeholder="sender@organization.com">
+                <span class="input-icon material-icons-outlined">forward_to_inbox</span>
+              </div>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Recipients (To Email)</label>
+              <div class="chips-input-container" [class.disabled]="isViewOnly" [class.error-border]="errors.to_mailid">
+                <div class="chips-list">
+                  <div class="chip" *ngFor="let email of emailChips; let i = index">
+                    <span>{{ email }}</span>
+                    <button class="remove-chip" (click)="removeEmailChip(i)" *ngIf="!isViewOnly">
+                      <span class="material-icons-outlined">cancel</span>
+                    </button>
+                  </div>
+                  <input type="text" 
+                         *ngIf="!isViewOnly"
+                         [(ngModel)]="emailInputValue"
+                         (input)="onToEmailInput()"
+                         (focus)="onToEmailInput()"
+                         (keydown)="onEmailKeyDown($event)"
+                         placeholder="Add email and press Enter...">
+                </div>
+
+                <!-- Custom Dropdown for Chips -->
+                <div class="suggestion-popover" *ngIf="showEmailSuggestions && !isViewOnly">
+                  <div class="suggestion-row" *ngFor="let email of filteredUserEmails" (click)="addEmailChip(email)">
+                    <span class="material-icons-outlined">alternate_email</span>
+                    <span>{{ email }}</span>
+                  </div>
+                </div>
+              </div>
+              <span class="error-msg" *ngIf="errors.to_mailid">{{ errors.to_mailid }}</span>
+              <span class="hint-text" *ngIf="!errors.to_mailid && !isViewOnly">Separate emails with a comma or Enter key.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer-modern">
+      <button class="btn-modern secondary" (click)="closeAddModal()">
+        {{ isViewOnly ? 'Close' : 'Cancel' }}
+      </button>
+      <button class="btn-modern primary" (click)="onSavePolicy()" [disabled]="isSaving" *ngIf="!isViewOnly">
+        <span *ngIf="isSaving" class="spinner-sm"></span>
+        <span>{{ isSaving ? 'Processing...' : (isEditMode ? 'Update Policy' : 'Save Configuration') }}</span>
+      </button>
+    </div>
+  </div>
+</div>

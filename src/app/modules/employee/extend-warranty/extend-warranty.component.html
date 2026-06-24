@@ -1,0 +1,45 @@
+<div class="card animate-fade-in" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-header pb-0 border-0">
+    <h3>Extend Asset Warranty</h3>
+    <p class="subtitle mt-8">Request warranty extension for hardware assets nearing expiration.</p>
+  </div>
+  <div class="card-body">
+    <form [formGroup]="warrantyForm" (ngSubmit)="onSubmit()" translate="no">
+      
+      <div class="form-group">
+        <label>Select Asset *</label>
+        <select formControlName="assetId" class="form-control" (change)="onAssetSelect()">
+          <option value="" disabled>Select an Asset</option>
+          <option *ngFor="let asset of eligibleAssets" [value]="asset.id">
+            {{ asset.name }} ({{ asset.warrantyExpiry | date: 'dd MMM yyyy' }})
+          </option>
+        </select>
+      </div>
+
+      <div *ngIf="selectedAsset" class="mb-24 p-24 animate-slide-up" style="background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+        <div class="grid grid-2 gap-16">
+          <div>
+            <p class="text-xs text-muted font-bold uppercase">Asset Tag</p>
+            <p class="font-medium mt-4">{{ selectedAsset.assetTag }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-muted font-bold uppercase">Current Expiry</p>
+            <p class="font-medium mt-4 text-warning" style="color: var(--accent-amber); font-weight: 600;">
+              {{ selectedAsset.warrantyExpiry | date }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group mt-24">
+        <label>Justification *</label>
+        <textarea formControlName="justification" class="form-control" data-gramm="false" spellcheck="false" placeholder="E.g., Continued use required for project XYZ, extension is cost-effective..." rows="4"></textarea>
+      </div>
+
+      <div class="mt-24 pt-16" style="border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" routerLink="/employee/my-requests">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="warrantyForm.invalid">Submit Extension Request</button>
+      </div>
+    </form>
+  </div>
+</div>
